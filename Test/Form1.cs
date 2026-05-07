@@ -7,7 +7,6 @@ using OxyPlot.Series;
 
 namespace Test
 {
-    // test account
     public partial class Form1 : Form
     {
         private ConnectionManager _connectionManager;
@@ -63,6 +62,10 @@ namespace Test
             InitializeChart();
             LoadDataToGrid();
             UpdateStats();
+
+            // Custom tab rendering
+            tcDashboard.DrawItem += TcDashboard_DrawItem;
+            tcDashboard.SelectedIndexChanged += (s, e) => tcDashboard.Invalidate();
         }
 
         private async void btnConnectIpadd_Click(object? sender, EventArgs e)
@@ -102,36 +105,36 @@ namespace Test
             if (isConnected)
             {
                 lbStatusconnection.Text      = "⬤  CONNECTED";
-                lbStatusconnection.BackColor = Color.FromArgb(39, 174, 96);
-                lbStatusconnection.ForeColor = Color.White;
+                lbStatusconnection.BackColor = AppColors.StatusConnectedBg;
+                lbStatusconnection.ForeColor = AppColors.StatusConnected;
                 btnConnectIpadd.Text      = "⏹  Ngắt kết nối";
-                btnConnectIpadd.BackColor = Color.FromArgb(192, 57, 43);
-                btnConnectIpadd.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 70, 50);
+                btnConnectIpadd.BackColor = AppColors.BrandRed;
+                btnConnectIpadd.FlatAppearance.MouseOverBackColor = AppColors.AccentRedHover;
                 btnConnectIpadd.Enabled   = true;
             }
             else if (isReconnecting)
             {
                 lbStatusconnection.Text      = "⬤  RECONNECTING...";
-                lbStatusconnection.BackColor = Color.FromArgb(230, 126, 34);
-                lbStatusconnection.ForeColor = Color.White;
+                lbStatusconnection.BackColor = AppColors.StatusWarningBg;
+                lbStatusconnection.ForeColor = AppColors.StatusWarning;
                 btnConnectIpadd.Text      = "❌  Hủy Reconnect";
-                btnConnectIpadd.BackColor = Color.FromArgb(192, 57, 43);
+                btnConnectIpadd.BackColor = AppColors.BrandRed;
                 btnConnectIpadd.Enabled   = true;
-                panel1.BackColor          = Color.FromArgb(18, 18, 18);
-                lbLiveweight.ForeColor    = Color.FromArgb(230, 126, 34);
-                System.Media.SystemSounds.Exclamation.Play(); // Cảnh báo mất kết nối
+                panel1.BackColor          = AppColors.PanelIdle;
+                lbLiveweight.ForeColor    = AppColors.StatusWarning;
+                System.Media.SystemSounds.Exclamation.Play();
             }
             else
             {
                 lbStatusconnection.Text      = "⬤  DISCONNECTED";
-                lbStatusconnection.BackColor = Color.FromArgb(60, 60, 60);
-                lbStatusconnection.ForeColor = Color.FromArgb(150, 150, 150);
+                lbStatusconnection.BackColor = AppColors.StatusIdle;
+                lbStatusconnection.ForeColor = AppColors.StatusIdleText;
                 btnConnectIpadd.Text      = "🔌  Kết nối (Connect)";
-                btnConnectIpadd.BackColor = Color.FromArgb(39, 174, 96);
-                btnConnectIpadd.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 200, 110);
+                btnConnectIpadd.BackColor = AppColors.BrandBlue;
+                btnConnectIpadd.FlatAppearance.MouseOverBackColor = AppColors.BrandBlueDark;
                 btnConnectIpadd.Enabled   = true;
-                panel1.BackColor          = Color.FromArgb(18, 18, 18);
-                lbLiveweight.ForeColor    = Color.FromArgb(0, 230, 118);
+                panel1.BackColor          = AppColors.PanelIdle;
+                lbLiveweight.ForeColor    = AppColors.TextMuted;
             }
         }
 
@@ -151,13 +154,13 @@ namespace Test
                 
                 if (scaleData.Value.IsStable)
                 {
-                    panel1.BackColor       = Color.FromArgb(20, 80, 45); // dark green
-                    lbLiveweight.ForeColor = Color.FromArgb(0, 230, 118);
+                    panel1.BackColor       = AppColors.PanelStable;
+                    lbLiveweight.ForeColor = AppColors.WeightStable;
                 }
                 else
                 {
-                    panel1.BackColor       = Color.FromArgb(80, 50, 10); // dark orange
-                    lbLiveweight.ForeColor = Color.FromArgb(255, 165, 0);
+                    panel1.BackColor       = AppColors.PanelUnstable;
+                    lbLiveweight.ForeColor = AppColors.WeightUnstable;
                 }
 
                 // Auto-Polling Logic
@@ -169,14 +172,60 @@ namespace Test
             }
         }
 
+        // ── Custom Tab Rendering ──────────────────────────────────
+        private void TcDashboard_DrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (sender is not TabControl tc) return;
+            TabPage page = tc.TabPages[e.Index];
+            bool isSelected = tc.SelectedIndex == e.Index;
+
+            // ── Background ────────────────────────────────────────────
+            Color bgColor = isSelected ? AppColors.Surface : AppColors.Background;
+            using var bgBrush = new SolidBrush(bgColor);
+            e.Graphics.FillRectangle(bgBrush, e.Bounds);
+
+            // ── Red accent underline for active tab ───────────────────
+            if (isSelected)
+            {
+                using var accentBrush = new SolidBrush(AppColors.BrandRed);
+                var accentRect = new Rectangle(e.Bounds.Left, e.Bounds.Bottom - 3, e.Bounds.Width, 3);
+                e.Graphics.FillRectangle(accentBrush, accentRect);
+            }
+            else
+            {
+                // Subtle bottom border for inactive tabs
+                using var borderPen = new Pen(AppColors.Border);
+                e.Graphics.DrawLine(borderPen,
+                    e.Bounds.Left, e.Bounds.Bottom - 1,
+                    e.Bounds.Right, e.Bounds.Bottom - 1);
+            }
+
+            // ── Tab text ──────────────────────────────────────────────
+            Color textColor = isSelected ? AppColors.BrandRed : AppColors.TextSecondary;
+            float fontSize  = isSelected ? 10.5F : 10F;
+            var fontStyle   = isSelected ? FontStyle.Bold : FontStyle.Regular;
+
+            using var font      = new Font("Segoe UI", fontSize, fontStyle);
+            using var textBrush = new SolidBrush(textColor);
+            var sf = new StringFormat
+            {
+                Alignment     = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center
+            };
+            // Offset text up slightly to avoid overlapping accent bar
+            var textRect = new Rectangle(e.Bounds.Left, e.Bounds.Top, e.Bounds.Width, e.Bounds.Height - 3);
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            e.Graphics.DrawString(page.Text, font, textBrush, textRect, sf);
+        }
+
         private void InitializeChart()
         {
             _plotModel = new PlotModel
             {
-                Background           = OxyColor.FromArgb(255, 24, 24, 24),
-                PlotAreaBackground   = OxyColor.FromArgb(255, 36, 36, 36),
-                TextColor            = OxyColor.FromArgb(255, 200, 200, 200),
-                PlotAreaBorderColor  = OxyColor.FromArgb(255, 70, 70, 70),
+                Background           = OxyColor.FromRgb(255, 255, 255),
+                PlotAreaBackground   = OxyColor.FromRgb(248, 250, 252),
+                TextColor            = OxyColor.FromRgb(30, 41, 59),
+                PlotAreaBorderColor  = OxyColor.FromRgb(226, 232, 240),
                 TitleFontSize        = 14
             };
 
@@ -185,10 +234,10 @@ namespace Test
                 Position           = AxisPosition.Bottom,
                 StringFormat       = "HH:mm:ss",
                 Title              = "Thời gian",
-                TextColor          = OxyColor.FromArgb(255, 160, 160, 160),
-                TicklineColor      = OxyColor.FromArgb(255, 80, 80, 80),
+                TextColor          = OxyColor.FromRgb(100, 116, 139),
+                TicklineColor      = OxyColor.FromRgb(226, 232, 240),
                 MajorGridlineStyle = LineStyle.Solid,
-                MajorGridlineColor = OxyColor.FromArgb(60, 120, 120, 120),
+                MajorGridlineColor = OxyColor.FromArgb(120, 226, 232, 240),
                 IntervalType       = DateTimeIntervalType.Seconds
             });
 
@@ -196,17 +245,17 @@ namespace Test
             {
                 Position           = AxisPosition.Left,
                 Title              = "Khối lượng",
-                TextColor          = OxyColor.FromArgb(255, 160, 160, 160),
-                TicklineColor      = OxyColor.FromArgb(255, 80, 80, 80),
+                TextColor          = OxyColor.FromRgb(100, 116, 139),
+                TicklineColor      = OxyColor.FromRgb(226, 232, 240),
                 MajorGridlineStyle = LineStyle.Solid,
-                MajorGridlineColor = OxyColor.FromArgb(60, 120, 120, 120)
+                MajorGridlineColor = OxyColor.FromArgb(120, 226, 232, 240)
             });
 
             _weightSeries = new LineSeries
             {
                 Title           = "Khối lượng",
-                Color           = OxyColor.FromArgb(255, 0, 230, 118),
-                StrokeThickness = 2,
+                Color           = OxyColor.FromRgb(0, 159, 227),  // BrandBlue
+                StrokeThickness = 2.5,
                 MarkerType      = MarkerType.None
             };
 
@@ -349,8 +398,7 @@ namespace Test
                     MessageBox.Show("Đã lưu số liệu thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 
-                LoadDataToGrid();
-                UpdateStats();
+                LoadDataToGrid(); // UpdateStats() is called inside LoadDataToGrid
             }
             catch (Exception ex)
             {

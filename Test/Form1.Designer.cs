@@ -79,22 +79,24 @@ namespace Test
             ((System.ComponentModel.ISupportInitialize)dgvWeightsheet).BeginInit();
             trayContextMenu.SuspendLayout();
             SuspendLayout();
-            // 
-            // tcDashboard
-            // 
+            // ── tcDashboard
             tcDashboard.Controls.Add(tpDashboard);
             tcDashboard.Controls.Add(tpAnalytics);
             tcDashboard.Controls.Add(tpDatasheet);
-            tcDashboard.Dock = DockStyle.Fill;
-            tcDashboard.Location = new Point(0, 0);
-            tcDashboard.Name = "tcDashboard";
+            tcDashboard.Dock          = DockStyle.Fill;
+            tcDashboard.DrawMode      = TabDrawMode.OwnerDrawFixed;
+            tcDashboard.ItemSize      = new Size(180, 40);
+            tcDashboard.Padding       = new Point(20, 8);
+            tcDashboard.Location      = new Point(0, 0);
+            tcDashboard.Name          = "tcDashboard";
             tcDashboard.SelectedIndex = 0;
-            tcDashboard.Size = new Size(1403, 840);
-            tcDashboard.TabIndex = 0;
+            tcDashboard.Size          = new Size(1403, 840);
+            tcDashboard.TabIndex      = 0;
+            tcDashboard.SizeMode      = TabSizeMode.Fixed;
             // 
             // tpDashboard
             // 
-            tpDashboard.BackColor = Color.FromArgb(24, 24, 24);
+            tpDashboard.BackColor = Color.FromArgb(244, 246, 249);
             tpDashboard.Controls.Add(groupBox3);
             tpDashboard.Controls.Add(groupBox2);
             tpDashboard.Controls.Add(groupBox1);
@@ -107,12 +109,12 @@ namespace Test
             // 
             // groupBox3
             // 
-            groupBox3.BackColor = Color.FromArgb(36, 36, 36);
+            groupBox3.BackColor = Color.White;
             groupBox3.Controls.Add(chkAutoPolling);
             groupBox3.Controls.Add(btnPolling);
             groupBox3.Controls.Add(label11);
             groupBox3.Controls.Add(panel1);
-            groupBox3.ForeColor = Color.FromArgb(220, 220, 220);
+            groupBox3.ForeColor = Color.FromArgb(30, 41, 59);
             groupBox3.Location = new Point(447, 6);
             groupBox3.Name = "groupBox3";
             groupBox3.Size = new Size(943, 793);
@@ -124,7 +126,7 @@ namespace Test
             chkAutoPolling.AutoSize = true;
             chkAutoPolling.BackColor = Color.Transparent;
             chkAutoPolling.Font = new Font("Segoe UI", 12F);
-            chkAutoPolling.ForeColor = Color.FromArgb(255, 200, 0);
+            chkAutoPolling.ForeColor = Color.FromArgb(0, 159, 227);
             chkAutoPolling.Location = new Point(21, 612);
             chkAutoPolling.Name = "chkAutoPolling";
             chkAutoPolling.Size = new Size(301, 32);
@@ -134,9 +136,9 @@ namespace Test
             // 
             // btnPolling
             // 
-            btnPolling.BackColor = Color.FromArgb(0, 122, 204);
+            btnPolling.BackColor = Color.FromArgb(227, 6, 19);
             btnPolling.FlatAppearance.BorderSize = 0;
-            btnPolling.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 150, 240);
+            btnPolling.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 5, 15);
             btnPolling.FlatStyle = FlatStyle.Flat;
             btnPolling.Font = new Font("Segoe UI", 30F, FontStyle.Bold);
             btnPolling.ForeColor = Color.White;
@@ -152,7 +154,7 @@ namespace Test
             label11.AutoSize = true;
             label11.BackColor = Color.Transparent;
             label11.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
-            label11.ForeColor = Color.FromArgb(220, 220, 220);
+            label11.ForeColor = Color.FromArgb(227, 6, 19);
             label11.Location = new Point(18, 20);
             label11.Name = "label11";
             label11.Size = new Size(152, 30);
@@ -161,7 +163,7 @@ namespace Test
             // 
             // panel1
             // 
-            panel1.BackColor = Color.FromArgb(18, 18, 18);
+            panel1.BackColor = Color.White;
             panel1.Controls.Add(lbLiveweight);
             panel1.Location = new Point(21, 52);
             panel1.Name = "panel1";
@@ -172,7 +174,7 @@ namespace Test
             // 
             lbLiveweight.Dock = DockStyle.Fill;
             lbLiveweight.Font = new Font("Bahnschrift Condensed", 96F);
-            lbLiveweight.ForeColor = Color.FromArgb(0, 230, 118);
+            lbLiveweight.ForeColor = Color.FromArgb(148, 163, 184);
             lbLiveweight.Location = new Point(0, 0);
             lbLiveweight.Name = "lbLiveweight";
             lbLiveweight.Size = new Size(907, 545);
@@ -182,7 +184,7 @@ namespace Test
             // 
             // groupBox2
             // 
-            groupBox2.BackColor = Color.FromArgb(36, 36, 36);
+            groupBox2.BackColor = Color.White;
             groupBox2.Controls.Add(tboLocation);
             groupBox2.Controls.Add(label10);
             groupBox2.Controls.Add(tboSamplename);
@@ -192,7 +194,7 @@ namespace Test
             groupBox2.Controls.Add(tboNat);
             groupBox2.Controls.Add(label7);
             groupBox2.Controls.Add(label6);
-            groupBox2.ForeColor = Color.FromArgb(220, 220, 220);
+            groupBox2.ForeColor = Color.FromArgb(30, 41, 59);
             groupBox2.Location = new Point(8, 357);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new Size(433, 442);
@@ -201,10 +203,10 @@ namespace Test
             // 
             // tboLocation
             // 
-            tboLocation.BackColor = Color.FromArgb(52, 52, 52);
+            tboLocation.BackColor = Color.White;
             tboLocation.BorderStyle = BorderStyle.FixedSingle;
             tboLocation.Font = new Font("Segoe UI", 10.8F);
-            tboLocation.ForeColor = Color.FromArgb(220, 220, 220);
+            tboLocation.ForeColor = Color.FromArgb(30, 41, 59);
             tboLocation.Location = new Point(210, 208);
             tboLocation.Name = "tboLocation";
             tboLocation.Size = new Size(217, 31);
@@ -215,7 +217,7 @@ namespace Test
             label10.AutoSize = true;
             label10.BackColor = Color.Transparent;
             label10.Font = new Font("Segoe UI", 10.8F);
-            label10.ForeColor = Color.FromArgb(220, 220, 220);
+            label10.ForeColor = Color.FromArgb(100, 116, 139);
             label10.Location = new Point(203, 180);
             label10.Name = "label10";
             label10.Size = new Size(130, 25);
@@ -224,10 +226,10 @@ namespace Test
             // 
             // tboSamplename
             // 
-            tboSamplename.BackColor = Color.FromArgb(52, 52, 52);
+            tboSamplename.BackColor = Color.White;
             tboSamplename.BorderStyle = BorderStyle.FixedSingle;
             tboSamplename.Font = new Font("Segoe UI", 10.8F);
-            tboSamplename.ForeColor = Color.FromArgb(220, 220, 220);
+            tboSamplename.ForeColor = Color.FromArgb(30, 41, 59);
             tboSamplename.Location = new Point(6, 332);
             tboSamplename.Name = "tboSamplename";
             tboSamplename.Size = new Size(421, 31);
@@ -238,7 +240,7 @@ namespace Test
             label9.AutoSize = true;
             label9.BackColor = Color.Transparent;
             label9.Font = new Font("Segoe UI", 10.8F);
-            label9.ForeColor = Color.FromArgb(220, 220, 220);
+            label9.ForeColor = Color.FromArgb(100, 116, 139);
             label9.Location = new Point(6, 304);
             label9.Name = "label9";
             label9.Size = new Size(204, 25);
@@ -247,10 +249,10 @@ namespace Test
             // 
             // tboBatch
             // 
-            tboBatch.BackColor = Color.FromArgb(52, 52, 52);
+            tboBatch.BackColor = Color.White;
             tboBatch.BorderStyle = BorderStyle.FixedSingle;
             tboBatch.Font = new Font("Segoe UI", 10.8F);
-            tboBatch.ForeColor = Color.FromArgb(220, 220, 220);
+            tboBatch.ForeColor = Color.FromArgb(30, 41, 59);
             tboBatch.Location = new Point(7, 208);
             tboBatch.Name = "tboBatch";
             tboBatch.Size = new Size(198, 31);
@@ -261,7 +263,7 @@ namespace Test
             label8.AutoSize = true;
             label8.BackColor = Color.Transparent;
             label8.Font = new Font("Segoe UI", 10.8F);
-            label8.ForeColor = Color.FromArgb(220, 220, 220);
+            label8.ForeColor = Color.FromArgb(100, 116, 139);
             label8.Location = new Point(0, 180);
             label8.Name = "label8";
             label8.Size = new Size(134, 25);
@@ -270,10 +272,10 @@ namespace Test
             // 
             // tboNat
             // 
-            tboNat.BackColor = Color.FromArgb(52, 52, 52);
+            tboNat.BackColor = Color.White;
             tboNat.BorderStyle = BorderStyle.FixedSingle;
             tboNat.Font = new Font("Segoe UI", 10.8F);
-            tboNat.ForeColor = Color.FromArgb(220, 220, 220);
+            tboNat.ForeColor = Color.FromArgb(30, 41, 59);
             tboNat.Location = new Point(6, 103);
             tboNat.Name = "tboNat";
             tboNat.Size = new Size(421, 31);
@@ -284,7 +286,7 @@ namespace Test
             label7.AutoSize = true;
             label7.BackColor = Color.Transparent;
             label7.Font = new Font("Segoe UI", 10.8F);
-            label7.ForeColor = Color.FromArgb(220, 220, 220);
+            label7.ForeColor = Color.FromArgb(100, 116, 139);
             label7.Location = new Point(0, 75);
             label7.Name = "label7";
             label7.Size = new Size(75, 25);
@@ -296,7 +298,7 @@ namespace Test
             label6.AutoSize = true;
             label6.BackColor = Color.Transparent;
             label6.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
-            label6.ForeColor = Color.FromArgb(220, 220, 220);
+            label6.ForeColor = Color.FromArgb(227, 6, 19);
             label6.Location = new Point(6, 23);
             label6.Name = "label6";
             label6.Size = new Size(259, 30);
@@ -305,7 +307,7 @@ namespace Test
             // 
             // groupBox1
             // 
-            groupBox1.BackColor = Color.FromArgb(36, 36, 36);
+            groupBox1.BackColor = Color.White;
             groupBox1.Controls.Add(lbStatusconnection);
             groupBox1.Controls.Add(btnConnectIpadd);
             groupBox1.Controls.Add(tboTcpport);
@@ -313,7 +315,7 @@ namespace Test
             groupBox1.Controls.Add(tboIpadd);
             groupBox1.Controls.Add(label2);
             groupBox1.Controls.Add(label1);
-            groupBox1.ForeColor = Color.FromArgb(220, 220, 220);
+            groupBox1.ForeColor = Color.FromArgb(30, 41, 59);
             groupBox1.Location = new Point(8, 6);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(433, 345);
@@ -322,9 +324,9 @@ namespace Test
             // 
             // lbStatusconnection
             // 
-            lbStatusconnection.BackColor = Color.FromArgb(60, 60, 60);
+            lbStatusconnection.BackColor = Color.FromArgb(226, 232, 240);
             lbStatusconnection.Font = new Font("Segoe UI", 10.8F, FontStyle.Bold);
-            lbStatusconnection.ForeColor = Color.FromArgb(150, 150, 150);
+            lbStatusconnection.ForeColor = Color.FromArgb(100, 116, 139);
             lbStatusconnection.Location = new Point(6, 277);
             lbStatusconnection.Name = "lbStatusconnection";
             lbStatusconnection.Size = new Size(421, 36);
@@ -334,9 +336,9 @@ namespace Test
             // 
             // btnConnectIpadd
             // 
-            btnConnectIpadd.BackColor = Color.FromArgb(39, 174, 96);
+            btnConnectIpadd.BackColor = Color.FromArgb(0, 159, 227);
             btnConnectIpadd.FlatAppearance.BorderSize = 0;
-            btnConnectIpadd.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 200, 110);
+            btnConnectIpadd.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 128, 192);
             btnConnectIpadd.FlatStyle = FlatStyle.Flat;
             btnConnectIpadd.Font = new Font("Segoe UI", 10.8F, FontStyle.Bold);
             btnConnectIpadd.ForeColor = Color.White;
@@ -349,10 +351,10 @@ namespace Test
             // 
             // tboTcpport
             // 
-            tboTcpport.BackColor = Color.FromArgb(52, 52, 52);
+            tboTcpport.BackColor = Color.White;
             tboTcpport.BorderStyle = BorderStyle.FixedSingle;
             tboTcpport.Font = new Font("Segoe UI", 10.8F);
-            tboTcpport.ForeColor = Color.FromArgb(220, 220, 220);
+            tboTcpport.ForeColor = Color.FromArgb(30, 41, 59);
             tboTcpport.Location = new Point(6, 173);
             tboTcpport.Name = "tboTcpport";
             tboTcpport.Size = new Size(421, 31);
@@ -363,7 +365,7 @@ namespace Test
             label3.AutoSize = true;
             label3.BackColor = Color.Transparent;
             label3.Font = new Font("Segoe UI", 10.8F);
-            label3.ForeColor = Color.FromArgb(220, 220, 220);
+            label3.ForeColor = Color.FromArgb(100, 116, 139);
             label3.Location = new Point(6, 145);
             label3.Name = "label3";
             label3.Size = new Size(78, 25);
@@ -372,10 +374,10 @@ namespace Test
             // 
             // tboIpadd
             // 
-            tboIpadd.BackColor = Color.FromArgb(52, 52, 52);
+            tboIpadd.BackColor = Color.White;
             tboIpadd.BorderStyle = BorderStyle.FixedSingle;
             tboIpadd.Font = new Font("Segoe UI", 10.8F);
-            tboIpadd.ForeColor = Color.FromArgb(220, 220, 220);
+            tboIpadd.ForeColor = Color.FromArgb(30, 41, 59);
             tboIpadd.Location = new Point(6, 91);
             tboIpadd.Name = "tboIpadd";
             tboIpadd.Size = new Size(421, 31);
@@ -386,7 +388,7 @@ namespace Test
             label2.AutoSize = true;
             label2.BackColor = Color.Transparent;
             label2.Font = new Font("Segoe UI", 10.8F);
-            label2.ForeColor = Color.FromArgb(220, 220, 220);
+            label2.ForeColor = Color.FromArgb(100, 116, 139);
             label2.Location = new Point(6, 63);
             label2.Name = "label2";
             label2.Size = new Size(97, 25);
@@ -398,7 +400,7 @@ namespace Test
             label1.AutoSize = true;
             label1.BackColor = Color.Transparent;
             label1.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
-            label1.ForeColor = Color.FromArgb(220, 220, 220);
+            label1.ForeColor = Color.FromArgb(227, 6, 19);
             label1.Location = new Point(0, 12);
             label1.Name = "label1";
             label1.Size = new Size(287, 30);
@@ -407,7 +409,7 @@ namespace Test
             // 
             // tpAnalytics
             // 
-            tpAnalytics.BackColor = Color.FromArgb(24, 24, 24);
+            tpAnalytics.BackColor = Color.FromArgb(244, 246, 249);
             tpAnalytics.Controls.Add(pnlStats);
             tpAnalytics.Controls.Add(plotViewLiveChart);
             tpAnalytics.Location = new Point(4, 29);
@@ -419,7 +421,7 @@ namespace Test
             // 
             // pnlStats
             // 
-            pnlStats.BackColor = Color.FromArgb(36, 36, 36);
+            pnlStats.BackColor = Color.White;
             pnlStats.Controls.Add(lbStatTodayCaption);
             pnlStats.Controls.Add(lbStatTodayValue);
             pnlStats.Controls.Add(lbStatBatchCaption);
@@ -437,18 +439,18 @@ namespace Test
             // 
             lbStatTodayCaption.BackColor = Color.Transparent;
             lbStatTodayCaption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lbStatTodayCaption.ForeColor = Color.FromArgb(130, 130, 130);
+            lbStatTodayCaption.ForeColor = Color.FromArgb(100, 116, 139);
             lbStatTodayCaption.Location = new Point(10, 10);
             lbStatTodayCaption.Name = "lbStatTodayCaption";
             lbStatTodayCaption.Size = new Size(330, 22);
             lbStatTodayCaption.TabIndex = 0;
-            lbStatTodayCaption.Text = "MẾ HÔM NAY";
+            lbStatTodayCaption.Text = "MẪU HÔM NAY";
             // 
             // lbStatTodayValue
             // 
             lbStatTodayValue.BackColor = Color.Transparent;
             lbStatTodayValue.Font = new Font("Segoe UI", 38F, FontStyle.Bold);
-            lbStatTodayValue.ForeColor = Color.FromArgb(0, 230, 118);
+            lbStatTodayValue.ForeColor = Color.FromArgb(227, 6, 19);
             lbStatTodayValue.Location = new Point(10, 35);
             lbStatTodayValue.Name = "lbStatTodayValue";
             lbStatTodayValue.Size = new Size(330, 70);
@@ -459,7 +461,7 @@ namespace Test
             // 
             lbStatBatchCaption.BackColor = Color.Transparent;
             lbStatBatchCaption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lbStatBatchCaption.ForeColor = Color.FromArgb(130, 130, 130);
+            lbStatBatchCaption.ForeColor = Color.FromArgb(100, 116, 139);
             lbStatBatchCaption.Location = new Point(355, 10);
             lbStatBatchCaption.Name = "lbStatBatchCaption";
             lbStatBatchCaption.Size = new Size(330, 22);
@@ -470,7 +472,7 @@ namespace Test
             // 
             lbStatBatchValue.BackColor = Color.Transparent;
             lbStatBatchValue.Font = new Font("Segoe UI", 30F, FontStyle.Bold);
-            lbStatBatchValue.ForeColor = Color.FromArgb(0, 122, 204);
+            lbStatBatchValue.ForeColor = Color.FromArgb(0, 159, 227);
             lbStatBatchValue.Location = new Point(355, 35);
             lbStatBatchValue.Name = "lbStatBatchValue";
             lbStatBatchValue.Size = new Size(330, 70);
@@ -481,7 +483,7 @@ namespace Test
             // 
             lbStatMinCaption.BackColor = Color.Transparent;
             lbStatMinCaption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lbStatMinCaption.ForeColor = Color.FromArgb(130, 130, 130);
+            lbStatMinCaption.ForeColor = Color.FromArgb(100, 116, 139);
             lbStatMinCaption.Location = new Point(700, 10);
             lbStatMinCaption.Name = "lbStatMinCaption";
             lbStatMinCaption.Size = new Size(330, 22);
@@ -492,7 +494,7 @@ namespace Test
             // 
             lbStatMinValue.BackColor = Color.Transparent;
             lbStatMinValue.Font = new Font("Segoe UI", 38F, FontStyle.Bold);
-            lbStatMinValue.ForeColor = Color.FromArgb(230, 126, 34);
+            lbStatMinValue.ForeColor = Color.FromArgb(217, 119, 6);
             lbStatMinValue.Location = new Point(700, 35);
             lbStatMinValue.Name = "lbStatMinValue";
             lbStatMinValue.Size = new Size(330, 70);
@@ -503,7 +505,7 @@ namespace Test
             // 
             lbStatMaxCaption.BackColor = Color.Transparent;
             lbStatMaxCaption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lbStatMaxCaption.ForeColor = Color.FromArgb(130, 130, 130);
+            lbStatMaxCaption.ForeColor = Color.FromArgb(100, 116, 139);
             lbStatMaxCaption.Location = new Point(1046, 10);
             lbStatMaxCaption.Name = "lbStatMaxCaption";
             lbStatMaxCaption.Size = new Size(330, 22);
@@ -514,7 +516,7 @@ namespace Test
             // 
             lbStatMaxValue.BackColor = Color.Transparent;
             lbStatMaxValue.Font = new Font("Segoe UI", 38F, FontStyle.Bold);
-            lbStatMaxValue.ForeColor = Color.FromArgb(231, 76, 60);
+            lbStatMaxValue.ForeColor = Color.FromArgb(227, 6, 19);
             lbStatMaxValue.Location = new Point(1046, 35);
             lbStatMaxValue.Name = "lbStatMaxValue";
             lbStatMaxValue.Size = new Size(330, 70);
@@ -523,7 +525,7 @@ namespace Test
             // 
             // plotViewLiveChart
             // 
-            plotViewLiveChart.BackColor = Color.FromArgb(24, 24, 24);
+            plotViewLiveChart.BackColor = Color.White;
             plotViewLiveChart.Location = new Point(6, 127);
             plotViewLiveChart.Name = "plotViewLiveChart";
             plotViewLiveChart.PanCursor = Cursors.Hand;
@@ -535,7 +537,7 @@ namespace Test
             // 
             // tpDatasheet
             // 
-            tpDatasheet.BackColor = Color.FromArgb(24, 24, 24);
+            tpDatasheet.BackColor = Color.FromArgb(244, 246, 249);
             tpDatasheet.Controls.Add(btnExportdata);
             tpDatasheet.Controls.Add(label12);
             tpDatasheet.Controls.Add(dgvWeightsheet);
@@ -548,7 +550,7 @@ namespace Test
             // 
             // btnExportdata
             // 
-            btnExportdata.BackColor = Color.FromArgb(0, 122, 204);
+            btnExportdata.BackColor = Color.FromArgb(0, 159, 227);
             btnExportdata.FlatAppearance.BorderSize = 0;
             btnExportdata.FlatStyle = FlatStyle.Flat;
             btnExportdata.Font = new Font("Segoe UI", 10.8F, FontStyle.Bold);
@@ -557,7 +559,7 @@ namespace Test
             btnExportdata.Name = "btnExportdata";
             btnExportdata.Size = new Size(305, 53);
             btnExportdata.TabIndex = 2;
-            btnExportdata.Text = "📤  Xuất báo cáo (.csv)";
+            btnExportdata.Text = "📤  Xuất báo cáo (.xlsx / .csv)";
             btnExportdata.UseVisualStyleBackColor = false;
             // 
             // label12
@@ -565,7 +567,7 @@ namespace Test
             label12.AutoSize = true;
             label12.BackColor = Color.Transparent;
             label12.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
-            label12.ForeColor = Color.FromArgb(220, 220, 220);
+            label12.ForeColor = Color.FromArgb(30, 41, 59);
             label12.Location = new Point(8, 20);
             label12.Name = "label12";
             label12.Size = new Size(437, 37);
@@ -574,38 +576,38 @@ namespace Test
             // 
             // dgvWeightsheet
             // 
-            dataGridViewCellStyle1.BackColor = Color.FromArgb(44, 44, 44);
-            dataGridViewCellStyle1.ForeColor = Color.FromArgb(220, 220, 220);
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(248, 250, 252);
+            dataGridViewCellStyle1.ForeColor = Color.FromArgb(30, 41, 59);
             dgvWeightsheet.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
-            dgvWeightsheet.BackgroundColor = Color.FromArgb(28, 28, 28);
+            dgvWeightsheet.BackgroundColor = Color.FromArgb(244, 246, 249);
             dgvWeightsheet.BorderStyle = BorderStyle.None;
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = Color.FromArgb(48, 48, 48);
-            dataGridViewCellStyle2.Font = new Font("Segoe UI", 9F);
-            dataGridViewCellStyle2.ForeColor = Color.FromArgb(220, 220, 220);
-            dataGridViewCellStyle2.SelectionBackColor = Color.FromArgb(60, 60, 60);
-            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.BackColor = Color.FromArgb(0, 159, 227);
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dataGridViewCellStyle2.ForeColor = Color.White;
+            dataGridViewCellStyle2.SelectionBackColor = Color.FromArgb(0, 128, 192);
+            dataGridViewCellStyle2.SelectionForeColor = Color.White;
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
             dgvWeightsheet.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             dgvWeightsheet.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = Color.FromArgb(36, 36, 36);
+            dataGridViewCellStyle3.BackColor = Color.White;
             dataGridViewCellStyle3.Font = new Font("Segoe UI", 9F);
-            dataGridViewCellStyle3.ForeColor = Color.FromArgb(220, 220, 220);
-            dataGridViewCellStyle3.SelectionBackColor = Color.FromArgb(0, 122, 204);
-            dataGridViewCellStyle3.SelectionForeColor = Color.White;
+            dataGridViewCellStyle3.ForeColor = Color.FromArgb(30, 41, 59);
+            dataGridViewCellStyle3.SelectionBackColor = Color.FromArgb(236, 248, 255);
+            dataGridViewCellStyle3.SelectionForeColor = Color.FromArgb(0, 128, 192);
             dataGridViewCellStyle3.WrapMode = DataGridViewTriState.False;
             dgvWeightsheet.DefaultCellStyle = dataGridViewCellStyle3;
             dgvWeightsheet.EnableHeadersVisualStyles = false;
-            dgvWeightsheet.GridColor = Color.FromArgb(60, 60, 60);
+            dgvWeightsheet.GridColor = Color.FromArgb(226, 232, 240);
             dgvWeightsheet.Location = new Point(17, 72);
             dgvWeightsheet.Name = "dgvWeightsheet";
             dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle4.BackColor = Color.FromArgb(48, 48, 48);
+            dataGridViewCellStyle4.BackColor = Color.FromArgb(226, 232, 240);
             dataGridViewCellStyle4.Font = new Font("Segoe UI", 9F);
-            dataGridViewCellStyle4.ForeColor = Color.FromArgb(220, 220, 220);
-            dataGridViewCellStyle4.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle4.ForeColor = Color.FromArgb(100, 116, 139);
+            dataGridViewCellStyle4.SelectionBackColor = Color.FromArgb(236, 248, 255);
+            dataGridViewCellStyle4.SelectionForeColor = Color.FromArgb(0, 128, 192);
             dataGridViewCellStyle4.WrapMode = DataGridViewTriState.True;
             dgvWeightsheet.RowHeadersDefaultCellStyle = dataGridViewCellStyle4;
             dgvWeightsheet.RowHeadersWidth = 51;
@@ -646,7 +648,7 @@ namespace Test
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(24, 24, 24);
+            BackColor = Color.FromArgb(0, 159, 227);
             ClientSize = new Size(1403, 840);
             Controls.Add(tcDashboard);
             Font = new Font("Segoe UI", 9F);
