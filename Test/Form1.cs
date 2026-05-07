@@ -1,12 +1,35 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
 
 namespace Test
 {
     public partial class Form1 : Form
     {
         private ConnectionManager _connectionManager;
+        private DataRepository _repository;
+        private CsvExportService _csvExportService;
+        private ExcelExportService _excelExportService;
+        private ScaleData? _lastScaleData;
+
+        // Analytics
+        private PlotModel   _plotModel   = null!;
+        private LineSeries  _weightSeries = null!;
+        private decimal?    _sessionMin;
+        private decimal?    _sessionMax;
+        private const int   MaxChartPoints = 300;
+
+        private enum AutoPollingState
+        {
+            WaitingForZero,
+            ReadyToWeigh,
+            WeightCaptured
+        }
+        private AutoPollingState _autoPollingState = AutoPollingState.WaitingForZero;
+        private const decimal ZeroThreshold = 0.05m;
 
         public Form1()
         {
@@ -15,62 +38,99 @@ namespace Test
             _connectionManager.OnStateChanged += ConnectionManager_OnStateChanged;
             _connectionManager.OnDataReceived += ConnectionManager_OnDataReceived;
 
+            _repository       = new DataRepository();
+            _csvExportService  = new CsvExportService();
+            _excelExportService = new ExcelExportService();
+
             btnConnectIpadd.Click += btnConnectIpadd_Click;
+            btnPolling.Click      += btnPolling_Click;
+            btnExportdata.Click   += btnExportdata_Click;
+
+            tboNat.KeyDown        += Tbo_KeyDown;
+            tboBatch.KeyDown      += Tbo_KeyDown;
+            tboSamplename.KeyDown += Tbo_KeyDown;
+            tboLocation.KeyDown   += Tbo_KeyDown;
+
+            trayIcon.Icon = this.Icon;
+            trayIcon.MouseDoubleClick += (s, e) => RestoreFromTray();
+            trayMenuOpen.Click += (s, e) => RestoreFromTray();
+            trayMenuExit.Click += (s, e) => ExitApplication();
+            this.Resize += Form1_Resize;
+
             this.FormClosing += Form1_FormClosing;
+
+            InitializeChart();
+            LoadDataToGrid();
+            UpdateStats();
         }
 
-        private async void btnConnectIpadd_Click(object sender, EventArgs e)
+        private async void btnConnectIpadd_Click(object? sender, EventArgs e)
         {
-            if (_connectionManager.IsConnected)
+            if (_connectionManager.IsConnected || btnConnectIpadd.Text.Contains("Ngắt"))
             {
                 _connectionManager.Disconnect();
             }
             else
             {
                 string ip = tboIpadd.Text.Trim();
-                if (string.IsNullOrEmpty(ip) || !int.TryParse(tboTcpport.Text.Trim(), out int port))
+                if (string.IsNullOrEmpty(ip) || !System.Net.IPAddress.TryParse(ip, out _))
                 {
-                    MessageBox.Show("Vui lòng nhập IP và Port hợp lệ.", "Lỗi nhập liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Vui lòng nhập IP hợp lệ (VD: 192.168.1.100).", "Lỗi nhập liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                try
+                if (!int.TryParse(tboTcpport.Text.Trim(), out int port) || port < 1 || port > 65535)
                 {
-                    btnConnectIpadd.Enabled = false;
-                    await _connectionManager.ConnectAsync(ip, port);
+                    MessageBox.Show("Vui lòng nhập Port hợp lệ (1 - 65535).", "Lỗi nhập liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message, "Lỗi kết nối", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                finally
-                {
-                    btnConnectIpadd.Enabled = true;
-                }
+
+                btnConnectIpadd.Enabled = false;
+                await _connectionManager.ConnectAsync(ip, port);
             }
         }
 
-        private void ConnectionManager_OnStateChanged(bool isConnected)
+        private void ConnectionManager_OnStateChanged(bool isConnected, bool isReconnecting)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(() => ConnectionManager_OnStateChanged(isConnected)));
+                this.Invoke(new Action(() => ConnectionManager_OnStateChanged(isConnected, isReconnecting)));
                 return;
             }
 
             if (isConnected)
             {
-                lbStatusconnection.Text = "Status : CONNECTED";
-                lbStatusconnection.BackColor = Color.LimeGreen;
-                btnConnectIpadd.Text = "Ngắt kết nối (Disconnect)";
+                lbStatusconnection.Text      = "⬤  CONNECTED";
+                lbStatusconnection.BackColor = Color.FromArgb(39, 174, 96);
+                lbStatusconnection.ForeColor = Color.White;
+                btnConnectIpadd.Text      = "⏹  Ngắt kết nối";
+                btnConnectIpadd.BackColor = Color.FromArgb(192, 57, 43);
+                btnConnectIpadd.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 70, 50);
+                btnConnectIpadd.Enabled   = true;
+            }
+            else if (isReconnecting)
+            {
+                lbStatusconnection.Text      = "⬤  RECONNECTING...";
+                lbStatusconnection.BackColor = Color.FromArgb(230, 126, 34);
+                lbStatusconnection.ForeColor = Color.White;
+                btnConnectIpadd.Text      = "❌  Hủy Reconnect";
+                btnConnectIpadd.BackColor = Color.FromArgb(192, 57, 43);
+                btnConnectIpadd.Enabled   = true;
+                panel1.BackColor          = Color.FromArgb(18, 18, 18);
+                lbLiveweight.ForeColor    = Color.FromArgb(230, 126, 34);
+                System.Media.SystemSounds.Exclamation.Play(); // Cảnh báo mất kết nối
             }
             else
             {
-                lbStatusconnection.Text = "Status : DISCONNECTED";
-                lbStatusconnection.BackColor = Color.Silver;
-                btnConnectIpadd.Text = "Kết nối (Connect)";
-                panel1.BackColor = SystemColors.WindowFrame;
-                lbLiveweight.ForeColor = Color.LimeGreen;
+                lbStatusconnection.Text      = "⬤  DISCONNECTED";
+                lbStatusconnection.BackColor = Color.FromArgb(60, 60, 60);
+                lbStatusconnection.ForeColor = Color.FromArgb(150, 150, 150);
+                btnConnectIpadd.Text      = "🔌  Kết nối (Connect)";
+                btnConnectIpadd.BackColor = Color.FromArgb(39, 174, 96);
+                btnConnectIpadd.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 200, 110);
+                btnConnectIpadd.Enabled   = true;
+                panel1.BackColor          = Color.FromArgb(18, 18, 18);
+                lbLiveweight.ForeColor    = Color.FromArgb(0, 230, 118);
             }
         }
 
@@ -85,23 +145,308 @@ namespace Test
             var scaleData = MtSicsParser.Parse(rawData);
             if (scaleData.HasValue)
             {
+                _lastScaleData = scaleData;
                 lbLiveweight.Text = $"{scaleData.Value.Weight} {scaleData.Value.Unit}";
+                
                 if (scaleData.Value.IsStable)
                 {
-                    panel1.BackColor = Color.LimeGreen;
-                    lbLiveweight.ForeColor = Color.Black;
+                    panel1.BackColor       = Color.FromArgb(20, 80, 45); // dark green
+                    lbLiveweight.ForeColor = Color.FromArgb(0, 230, 118);
                 }
                 else
                 {
-                    panel1.BackColor = Color.Orange;
-                    lbLiveweight.ForeColor = Color.Black;
+                    panel1.BackColor       = Color.FromArgb(80, 50, 10); // dark orange
+                    lbLiveweight.ForeColor = Color.FromArgb(255, 165, 0);
+                }
+
+                // Auto-Polling Logic
+                if (chkAutoPolling.Checked)
+                    ProcessAutoPolling(scaleData.Value);
+
+                // Live Chart update
+                UpdateChart(scaleData.Value);
+            }
+        }
+
+        private void InitializeChart()
+        {
+            _plotModel = new PlotModel
+            {
+                Background           = OxyColor.FromArgb(255, 24, 24, 24),
+                PlotAreaBackground   = OxyColor.FromArgb(255, 36, 36, 36),
+                TextColor            = OxyColor.FromArgb(255, 200, 200, 200),
+                PlotAreaBorderColor  = OxyColor.FromArgb(255, 70, 70, 70),
+                TitleFontSize        = 14
+            };
+
+            _plotModel.Axes.Add(new DateTimeAxis
+            {
+                Position           = AxisPosition.Bottom,
+                StringFormat       = "HH:mm:ss",
+                Title              = "Thời gian",
+                TextColor          = OxyColor.FromArgb(255, 160, 160, 160),
+                TicklineColor      = OxyColor.FromArgb(255, 80, 80, 80),
+                MajorGridlineStyle = LineStyle.Solid,
+                MajorGridlineColor = OxyColor.FromArgb(60, 120, 120, 120),
+                IntervalType       = DateTimeIntervalType.Seconds
+            });
+
+            _plotModel.Axes.Add(new LinearAxis
+            {
+                Position           = AxisPosition.Left,
+                Title              = "Khối lượng",
+                TextColor          = OxyColor.FromArgb(255, 160, 160, 160),
+                TicklineColor      = OxyColor.FromArgb(255, 80, 80, 80),
+                MajorGridlineStyle = LineStyle.Solid,
+                MajorGridlineColor = OxyColor.FromArgb(60, 120, 120, 120)
+            });
+
+            _weightSeries = new LineSeries
+            {
+                Title           = "Khối lượng",
+                Color           = OxyColor.FromArgb(255, 0, 230, 118),
+                StrokeThickness = 2,
+                MarkerType      = MarkerType.None
+            };
+
+            _plotModel.Series.Add(_weightSeries);
+            plotViewLiveChart.Model = _plotModel;
+        }
+
+        private void UpdateChart(ScaleData data)
+        {
+            double t = DateTimeAxis.ToDouble(DateTime.Now);
+            _weightSeries.Points.Add(new DataPoint(t, (double)data.Weight));
+
+            if (_weightSeries.Points.Count > MaxChartPoints)
+                _weightSeries.Points.RemoveAt(0);
+
+            // Track session min/max (stable readings only)
+            if (data.IsStable && data.Weight > 0.05m)
+            {
+                _sessionMin = _sessionMin.HasValue ? Math.Min(_sessionMin.Value, data.Weight) : data.Weight;
+                _sessionMax = _sessionMax.HasValue ? Math.Max(_sessionMax.Value, data.Weight) : data.Weight;
+
+                lbStatMinValue.Text = $"{_sessionMin:F4} g";
+                lbStatMaxValue.Text = $"{_sessionMax:F4} g";
+            }
+
+            _plotModel.InvalidatePlot(true);
+        }
+
+        private void UpdateStats()
+        {
+            try
+            {
+                int todayCount      = _repository.GetTodayCount();
+                decimal batchTotal  = _repository.GetBatchTotal(tboBatch.Text.Trim());
+
+                lbStatTodayValue.Text = todayCount.ToString();
+                lbStatBatchValue.Text = $"{batchTotal:F4} g";
+            }
+            catch { /* stats are non-critical, suppress silently */ }
+        }
+
+        private void ProcessAutoPolling(ScaleData data)
+        {
+            switch (_autoPollingState)
+            {
+                case AutoPollingState.WaitingForZero:
+                    if (data.Weight <= ZeroThreshold && data.IsStable)
+                    {
+                        _autoPollingState = AutoPollingState.ReadyToWeigh;
+                    }
+                    break;
+                case AutoPollingState.ReadyToWeigh:
+                    if (data.Weight > ZeroThreshold && data.IsStable)
+                    {
+                        SaveCurrentWeight(true);
+                        _autoPollingState = AutoPollingState.WeightCaptured;
+                    }
+                    break;
+                case AutoPollingState.WeightCaptured:
+                    if (data.Weight <= ZeroThreshold)
+                    {
+                        _autoPollingState = AutoPollingState.WaitingForZero;
+                    }
+                    break;
+            }
+        }
+
+        private void btnPolling_Click(object? sender, EventArgs e)
+        {
+            SaveCurrentWeight(false);
+        }
+
+        private void Tbo_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true; // Chặn tiếng bíp mặc định của Windows
+                
+                if (sender == tboNat)
+                {
+                    tboBatch.Focus();
+                }
+                else if (sender == tboBatch)
+                {
+                    tboSamplename.Focus();
+                }
+                else if (sender == tboSamplename)
+                {
+                    tboLocation.Focus();
+                }
+                else if (sender == tboLocation)
+                {
+                    // Nếu ở ô cuối cùng, có thể focus ngược lại ô đầu hoặc chốt số?
+                    // Ở đây tôi chọn quay lại ô đầu để chuẩn bị cho lô tiếp theo
+                    tboNat.Focus();
                 }
             }
         }
 
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        private void SaveCurrentWeight(bool isAuto)
         {
+            if (!_connectionManager.IsConnected)
+            {
+                if (!isAuto) MessageBox.Show("Cân chưa được kết nối.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!_lastScaleData.HasValue)
+            {
+                if (!isAuto) MessageBox.Show("Chưa nhận được dữ liệu từ cân.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!isAuto && !_lastScaleData.Value.IsStable)
+            {
+                var result = MessageBox.Show("Cân chưa ổn định. Bạn có chắc chắn muốn chốt số liệu hiện tại?", "Cảnh báo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (result == DialogResult.No) return;
+            }
+
+            try
+            {
+                var record = new ScaleRecord
+                {
+                    Timestamp = DateTime.Now,
+                    Weight = _lastScaleData.Value.Weight,
+                    Unit = _lastScaleData.Value.Unit,
+                    NatCode = tboNat.Text.Trim(),
+                    Batch = tboBatch.Text.Trim(),
+                    SampleName = tboSamplename.Text.Trim(),
+                    Location = tboLocation.Text.Trim()
+                };
+
+                _repository.Insert(record);
+
+                // Audio feedback
+                System.Media.SystemSounds.Beep.Play();
+
+                if (!isAuto)
+                {
+                    MessageBox.Show("Đã lưu số liệu thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                
+                LoadDataToGrid();
+                UpdateStats();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi khi lưu dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void LoadDataToGrid()
+        {
+            try
+            {
+                var data = _repository.GetAll();
+                dgvWeightsheet.DataSource = data;
+                UpdateStats();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi tải dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnExportdata_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                var data = _repository.GetAll();
+                if (data.Count == 0)
+                {
+                    MessageBox.Show("Không có dữ liệu để xuất.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                using (var dlg = new SaveFileDialog())
+                {
+                    dlg.Title    = "Xuất dữ liệu cân";
+                    dlg.Filter   = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
+                    dlg.FileName = $"ScaleData_{DateTime.Now:yyyyMMdd_HHmmss}";
+
+                    if (dlg.ShowDialog() == DialogResult.OK)
+                    {
+                        string ext = System.IO.Path.GetExtension(dlg.FileName).ToLower();
+                        if (ext == ".xlsx")
+                            _excelExportService.Export(dlg.FileName, data);
+                        else
+                            _csvExportService.Export(dlg.FileName, data);
+
+                        MessageBox.Show("Xuất dữ liệu thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi xuất dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void Form1_Resize(object? sender, EventArgs e)
+        {
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                this.Hide();
+                trayIcon.Visible = true;
+                trayIcon.ShowBalloonTip(2000, "Scale Data Collection",
+                    "Chương trình đang chạy ngầm. Click vào đây để mở lại.",
+                    ToolTipIcon.Info);
+            }
+        }
+
+        private void RestoreFromTray()
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            this.BringToFront();
+            trayIcon.Visible = false;
+        }
+
+        private bool _forceExit = false;
+
+        private void ExitApplication()
+        {
+            _forceExit = true;
             _connectionManager?.Dispose();
+            trayIcon.Visible = false;
+            Application.Exit();
+        }
+
+        private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (!_forceExit && e.CloseReason == CloseReason.UserClosing)
+            {
+                // X button → minimize to tray thay vì thoát
+                e.Cancel = true;
+                this.WindowState = FormWindowState.Minimized;
+                return;
+            }
+            _connectionManager?.Dispose();
+            trayIcon.Dispose();
         }
     }
 }

@@ -59,5 +59,38 @@ namespace Test
             }
             return records;
         }
+        public int GetTodayCount()
+        {
+            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
+            {
+                connection.Open();
+                string query = "SELECT COUNT(*) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now')";
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    var result = command.ExecuteScalar();
+                    return result == null ? 0 : (int)(long)result;
+                }
+            }
+        }
+
+        public decimal GetBatchTotal(string batch)
+        {
+            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
+            {
+                connection.Open();
+                string query = string.IsNullOrEmpty(batch)
+                    ? "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now')"
+                    : "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE Batch = @Batch AND DATE(Timestamp) = DATE('now')";
+
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    if (!string.IsNullOrEmpty(batch))
+                        command.Parameters.AddWithValue("@Batch", batch);
+
+                    var result = command.ExecuteScalar();
+                    return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result);
+                }
+            }
+        }
     }
 }
