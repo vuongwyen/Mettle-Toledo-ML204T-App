@@ -62,6 +62,8 @@ namespace Test
             btnExportdata = new Button();
             label12 = new Label();
             dgvWeightsheet = new DataGridView();
+            lbScaleModel = new Label();
+            lbScaleSN = new Label();
             trayIcon = new NotifyIcon(components);
             trayContextMenu = new ContextMenuStrip(components);
             trayMenuOpen = new ToolStripMenuItem();
@@ -308,6 +310,8 @@ namespace Test
             // groupBox1
             // 
             groupBox1.BackColor = Color.White;
+            groupBox1.Controls.Add(lbScaleSN);
+            groupBox1.Controls.Add(lbScaleModel);
             groupBox1.Controls.Add(lbStatusconnection);
             groupBox1.Controls.Add(btnConnectIpadd);
             groupBox1.Controls.Add(tboTcpport);
@@ -321,6 +325,28 @@ namespace Test
             groupBox1.Size = new Size(433, 345);
             groupBox1.TabIndex = 0;
             groupBox1.TabStop = false;
+            // 
+            // lbScaleModel
+            // 
+            lbScaleModel.AutoSize = true;
+            lbScaleModel.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+            lbScaleModel.ForeColor = Color.FromArgb(100, 116, 139);
+            lbScaleModel.Location = new Point(10, 316);
+            lbScaleModel.Name = "lbScaleModel";
+            lbScaleModel.Size = new Size(54, 20);
+            lbScaleModel.TabIndex = 7;
+            lbScaleModel.Text = "Model: -";
+            // 
+            // lbScaleSN
+            // 
+            lbScaleSN.AutoSize = true;
+            lbScaleSN.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+            lbScaleSN.ForeColor = Color.FromArgb(100, 116, 139);
+            lbScaleSN.Location = new Point(230, 316);
+            lbScaleSN.Name = "lbScaleSN";
+            lbScaleSN.Size = new Size(41, 20);
+            lbScaleSN.TabIndex = 8;
+            lbScaleSN.Text = "S/N: -";
             // 
             // lbStatusconnection
             // 
@@ -689,6 +715,8 @@ namespace Test
         private Label       label2;
         private Label       label1;
         private Label       lbStatusconnection;
+        private Label       lbScaleModel;
+        private Label       lbScaleSN;
         private Button      btnConnectIpadd;
         private Panel       panel1;
         private Label       lbLiveweight;

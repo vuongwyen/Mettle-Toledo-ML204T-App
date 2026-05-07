@@ -4,8 +4,15 @@ using Microsoft.Data.Sqlite;
 
 namespace Test
 {
+    /// <summary>
+    /// Handles all SQLite database operations for ScaleRecord persistence.
+    /// Uses parameterized queries to ensure security against SQL injection.
+    /// </summary>
     public class DataRepository
     {
+        /// <summary>
+        /// Inserts a new scale measurement into the database.
+        /// </summary>
         public void Insert(ScaleRecord record)
         {
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))

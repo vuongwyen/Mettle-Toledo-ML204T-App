@@ -18,7 +18,7 @@ namespace Test
                 cell.Value = headers[col - 1];
                 cell.Style.Font.Bold = true;
                 cell.Style.Font.FontColor = XLColor.White;
-                cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 122, 204);
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#009FE3"); // BrandBlue
                 cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             }
 
@@ -42,7 +42,7 @@ namespace Test
                 // Alternating row color
                 if (i % 2 == 1)
                 {
-                    ws.Row(row).Style.Fill.BackgroundColor = XLColor.FromArgb(44, 44, 44);
+                    ws.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9"); // Light Grey/Blue
                 }
             }
 

@@ -53,8 +53,6 @@ namespace Test
 
             trayIcon.Icon = this.Icon;
             trayIcon.MouseDoubleClick += (s, e) => RestoreFromTray();
-            trayMenuOpen.Click += (s, e) => RestoreFromTray();
-            trayMenuExit.Click += (s, e) => ExitApplication();
             this.Resize += Form1_Resize;
 
             this.FormClosing += Form1_FormClosing;
@@ -70,7 +68,8 @@ namespace Test
 
         private async void btnConnectIpadd_Click(object? sender, EventArgs e)
         {
-            if (_connectionManager.IsConnected || btnConnectIpadd.Text.Contains("Ngắt"))
+            // Dùng state thật thay vì so sánh text nút (tránh bug khi text thay đổi)
+            if (_connectionManager.IsConnected || _connectionManager.IsReconnecting)
             {
                 _connectionManager.Disconnect();
             }
@@ -111,10 +110,26 @@ namespace Test
                 btnConnectIpadd.BackColor = AppColors.BrandRed;
                 btnConnectIpadd.FlatAppearance.MouseOverBackColor = AppColors.AccentRedHover;
                 btnConnectIpadd.Enabled   = true;
+
+                // Cập nhật thông tin nhận diện cân
+                var info = _connectionManager.ConnectedScale;
+                if (info != null)
+                {
+                    lbScaleModel.Text = $"Model: {info.Model}";
+                    lbScaleSN.Text    = $"S/N: {info.SerialNumber}";
+                    lbScaleModel.Visible = true;
+                    lbScaleSN.Visible    = true;
+                }
             }
             else if (isReconnecting)
             {
-                lbStatusconnection.Text      = "⬤  RECONNECTING...";
+                // Lấy lý do lỗi nếu có (vd: sai thiết bị, timeout)
+                string reason = _connectionManager.LastError ?? "Mất kết nối";
+                bool isWrongDevice = reason.Contains("MT-SICS");
+
+                lbStatusconnection.Text      = isWrongDevice
+                    ? "⚠  SAI THIẼT BỊ"
+                    : "⬤  RECONNECTING...";
                 lbStatusconnection.BackColor = AppColors.StatusWarningBg;
                 lbStatusconnection.ForeColor = AppColors.StatusWarning;
                 btnConnectIpadd.Text      = "❌  Hủy Reconnect";
@@ -123,6 +138,14 @@ namespace Test
                 panel1.BackColor          = AppColors.PanelIdle;
                 lbLiveweight.ForeColor    = AppColors.StatusWarning;
                 System.Media.SystemSounds.Exclamation.Play();
+
+                // Hiển thị balloon tip với lý do cụ thể
+                trayIcon.Visible = true;
+                trayIcon.ShowBalloonTip(4000,
+                    isWrongDevice ? "Lỗi xác thực thiết bị" : "Mất kết nối",
+                    reason,
+                    isWrongDevice ? ToolTipIcon.Error : ToolTipIcon.Warning);
+                trayIcon.Visible = false;
             }
             else
             {
@@ -135,6 +158,9 @@ namespace Test
                 btnConnectIpadd.Enabled   = true;
                 panel1.BackColor          = AppColors.PanelIdle;
                 lbLiveweight.ForeColor    = AppColors.TextMuted;
+
+                lbScaleModel.Text = "Model: -";
+                lbScaleSN.Text    = "S/N: -";
             }
         }
 
@@ -149,26 +175,51 @@ namespace Test
             var scaleData = MtSicsParser.Parse(rawData);
             if (scaleData.HasValue)
             {
-                _lastScaleData = scaleData;
-                lbLiveweight.Text = $"{scaleData.Value.Weight} {scaleData.Value.Unit}";
-                
-                if (scaleData.Value.IsStable)
+                var data = scaleData.Value;
+                _lastScaleData = data;
+
+                // ── Xử lý hiển thị dựa trên trạng thái ────────────────
+                if (data.Status == ScaleStatus.Overload)
                 {
-                    panel1.BackColor       = AppColors.PanelStable;
-                    lbLiveweight.ForeColor = AppColors.WeightStable;
+                    lbLiveweight.Text      = "OVERLOAD";
+                    panel1.BackColor       = AppColors.StatusWarningBg;
+                    lbLiveweight.ForeColor = AppColors.BrandRed;
+                }
+                else if (data.Status == ScaleStatus.Underload)
+                {
+                    lbLiveweight.Text      = "UNDERLOAD";
+                    panel1.BackColor       = AppColors.StatusWarningBg;
+                    lbLiveweight.ForeColor = AppColors.BrandRed;
+                }
+                else if (data.Status == ScaleStatus.Invalid)
+                {
+                    lbLiveweight.Text      = "ERR / BUSY";
+                    panel1.BackColor       = AppColors.StatusWarningBg;
+                    lbLiveweight.ForeColor = AppColors.StatusWarning;
                 }
                 else
                 {
-                    panel1.BackColor       = AppColors.PanelUnstable;
-                    lbLiveweight.ForeColor = AppColors.WeightUnstable;
+                    // Trạng thái bình thường (Stable hoặc Dynamic)
+                    lbLiveweight.Text = $"{data.Weight:F4} {data.Unit}";
+                    
+                    if (data.IsStable)
+                    {
+                        panel1.BackColor       = AppColors.PanelStable;
+                        lbLiveweight.ForeColor = AppColors.WeightStable;
+                    }
+                    else
+                    {
+                        panel1.BackColor       = AppColors.PanelUnstable;
+                        lbLiveweight.ForeColor = AppColors.WeightUnstable;
+                    }
+
+                    // Live Chart update (chỉ update khi có số liệu hợp lệ)
+                    UpdateChart(data);
                 }
 
-                // Auto-Polling Logic
-                if (chkAutoPolling.Checked)
-                    ProcessAutoPolling(scaleData.Value);
-
-                // Live Chart update
-                UpdateChart(scaleData.Value);
+                // Auto-Polling Logic (chỉ chạy nếu không phải trạng thái lỗi)
+                if (chkAutoPolling.Checked && !data.IsError)
+                    ProcessAutoPolling(data);
             }
         }
 
@@ -265,6 +316,8 @@ namespace Test
 
         private void UpdateChart(ScaleData data)
         {
+            if (data.IsError) return; // Không vẽ khi quá tải/dưới tải
+
             double t = DateTimeAxis.ToDouble(DateTime.Now);
             _weightSeries.Points.Add(new DataPoint(t, (double)data.Weight));
 
@@ -457,14 +510,7 @@ namespace Test
 
         private void Form1_Resize(object? sender, EventArgs e)
         {
-            if (this.WindowState == FormWindowState.Minimized)
-            {
-                this.Hide();
-                trayIcon.Visible = true;
-                trayIcon.ShowBalloonTip(2000, "Scale Data Collection",
-                    "Chương trình đang chạy ngầm. Click vào đây để mở lại.",
-                    ToolTipIcon.Info);
-            }
+            // Không thực hiện ẩn ứng dụng khi thu nhỏ
         }
 
         private void RestoreFromTray()
@@ -475,26 +521,11 @@ namespace Test
             trayIcon.Visible = false;
         }
 
-        private bool _forceExit = false;
-
-        private void ExitApplication()
-        {
-            _forceExit = true;
-            _connectionManager?.Dispose();
-            trayIcon.Visible = false;
-            Application.Exit();
-        }
-
         private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
         {
-            if (!_forceExit && e.CloseReason == CloseReason.UserClosing)
-            {
-                // X button → minimize to tray thay vì thoát
-                e.Cancel = true;
-                this.WindowState = FormWindowState.Minimized;
-                return;
-            }
+            // Đảm bảo đóng tất cả kết nối khi thoát
             _connectionManager?.Dispose();
+            trayIcon.Visible = false;
             trayIcon.Dispose();
         }
     }
