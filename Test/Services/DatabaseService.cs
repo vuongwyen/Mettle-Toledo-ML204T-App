@@ -1,21 +1,46 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Data.Sqlite;
 
 namespace Test.Services
 {
     public class DatabaseService
     {
-        private readonly string _connectionString;
+        private string _connectionString;
 
-        // SEC-02 FIX: Key is never stored in source code.
-        // Set via: [System Environment] → Variable name: TESA_DB_KEY
-        // For dev: $Env:TESA_DB_KEY = "YourStrongPassphrase" (PowerShell)
-        private static string DbPassword =>
-            System.Environment.GetEnvironmentVariable("TESA_DB_KEY")
-            ?? throw new InvalidOperationException(
-                "Database encryption key is missing. " +
-                "Set the 'TESA_DB_KEY' environment variable and restart the application.");
+        // SEC-02 v2: Windows DPAPI — Machine-bound key, zero end-user config.
+        // Key is generated once, encrypted with Windows DPAPI, stored in Registry.
+        // Only the same Windows user/machine can decrypt it.
+        private static string DbPassword
+        {
+            get
+            {
+                const string regPath = @"SOFTWARE\TESA\ScaleApp";
+                const string regKey  = "DbKey";
+
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(regPath, writable: false);
+                var encryptedBytes = key?.GetValue(regKey) as byte[];
+
+                if (encryptedBytes is not null)
+                {
+                    // Decrypt using DPAPI — only works on the same user/machine
+                    var plain = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
+                    return Encoding.UTF8.GetString(plain);
+                }
+
+                // First run: generate a strong random key, encrypt and persist it
+                var rawKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+                var rawBytes = Encoding.UTF8.GetBytes(rawKey);
+                var protectedBytes = ProtectedData.Protect(rawBytes, null, DataProtectionScope.CurrentUser);
+
+                using var newKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(regPath);
+                newKey.SetValue(regKey, protectedBytes, Microsoft.Win32.RegistryValueKind.Binary);
+
+                return rawKey;
+            }
+        }
 
         public DatabaseService(string dbPath = "scale_data.db")
         {
@@ -27,23 +52,63 @@ namespace Test.Services
 
         private void InitializeDatabase()
         {
-            using (var connection = new SqliteConnection(_connectionString))
+            // Guard: nếu file tồn tại nhưng key sai (Error 26), backup rồi tạo lại.
+            TryOpenOrReset();
+            CreateSchema();
+        }
+
+        private void TryOpenOrReset()
+        {
+            try
             {
-                connection.Open();
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS Weights (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        Weight DECIMAL(18,4),
-                        Unit TEXT,
-                        NatCode TEXT,
-                        Batch TEXT,
-                        SampleName TEXT,
-                        Location TEXT
-                    );";
-                command.ExecuteNonQuery();
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open(); // Sẽ throw nếu key sai
             }
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 26)
+            {
+                // Error 26: file is not a database — key mismatch hoặc file plain (unencrypted)
+                // Backup file lỗi, xóa để tạo lại với key đúng
+                var dbPath = new SqliteConnectionStringBuilder(_connectionString).DataSource;
+                if (System.IO.File.Exists(dbPath))
+                {
+                    var backup = $"{dbPath}.bak_{DateTime.Now:yyyyMMdd_HHmmss}";
+                    System.IO.File.Move(dbPath, backup);
+                    // Xóa DPAPI key cũ trong Registry để sinh key mới gắn với file mới
+                    Microsoft.Win32.Registry.CurrentUser
+                        .OpenSubKey(@"SOFTWARE\TESA\ScaleApp", writable: true)
+                        ?.DeleteValue("DbKey", throwOnMissingValue: false);
+                }
+                // _connectionString vẫn hợp lệ — DbPassword sẽ sinh key mới ở lần gọi tiếp theo
+                _connectionString_reset(); // Cập nhật connection string với key DPAPI mới
+            }
+        }
+
+        private void _connectionString_reset()
+        {
+            var builder = new SqliteConnectionStringBuilder(_connectionString)
+            {
+                Password = DbPassword // DbPassword generates a new key (Registry was cleared)
+            };
+            _connectionString = builder.ToString();
+        }
+
+        private void CreateSchema()
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            var command = connection.CreateCommand();
+            command.CommandText = @"
+                CREATE TABLE IF NOT EXISTS Weights (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    Weight DECIMAL(18,4),
+                    Unit TEXT,
+                    NatCode TEXT,
+                    Batch TEXT,
+                    SampleName TEXT,
+                    Location TEXT
+                );";
+            command.ExecuteNonQuery();
         }
 
         public void InsertRecord(ScaleRecord record)
