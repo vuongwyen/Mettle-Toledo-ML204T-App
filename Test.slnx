@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="Setup_Test/Setup_Test.vdproj" Type="Installer" />
   <Project Path="Test/Test.csproj" />
 </Solution>

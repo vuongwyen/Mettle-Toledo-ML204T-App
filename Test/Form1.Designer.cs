@@ -40,6 +40,8 @@ namespace Test
             label7 = new Label();
             label6 = new Label();
             groupBox1 = new GroupBox();
+            lbScaleSN = new Label();
+            lbScaleModel = new Label();
             lbStatusconnection = new Label();
             btnConnectIpadd = new Button();
             tboTcpport = new TextBox();
@@ -62,13 +64,12 @@ namespace Test
             btnExportdata = new Button();
             label12 = new Label();
             dgvWeightsheet = new DataGridView();
-            lbScaleModel = new Label();
-            lbScaleSN = new Label();
             trayIcon = new NotifyIcon(components);
             trayContextMenu = new ContextMenuStrip(components);
             trayMenuOpen = new ToolStripMenuItem();
             trayMenuSep = new ToolStripSeparator();
             trayMenuExit = new ToolStripMenuItem();
+            sqliteConnection1 = new Microsoft.Data.Sqlite.SqliteConnection();
             tcDashboard.SuspendLayout();
             tpDashboard.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -81,20 +82,22 @@ namespace Test
             ((System.ComponentModel.ISupportInitialize)dgvWeightsheet).BeginInit();
             trayContextMenu.SuspendLayout();
             SuspendLayout();
-            // ── tcDashboard
+            // 
+            // tcDashboard
+            // 
             tcDashboard.Controls.Add(tpDashboard);
             tcDashboard.Controls.Add(tpAnalytics);
             tcDashboard.Controls.Add(tpDatasheet);
-            tcDashboard.Dock          = DockStyle.Fill;
-            tcDashboard.DrawMode      = TabDrawMode.OwnerDrawFixed;
-            tcDashboard.ItemSize      = new Size(180, 40);
-            tcDashboard.Padding       = new Point(20, 8);
-            tcDashboard.Location      = new Point(0, 0);
-            tcDashboard.Name          = "tcDashboard";
+            tcDashboard.Dock = DockStyle.Fill;
+            tcDashboard.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tcDashboard.ItemSize = new Size(180, 40);
+            tcDashboard.Location = new Point(0, 0);
+            tcDashboard.Name = "tcDashboard";
+            tcDashboard.Padding = new Point(20, 8);
             tcDashboard.SelectedIndex = 0;
-            tcDashboard.Size          = new Size(1403, 840);
-            tcDashboard.TabIndex      = 0;
-            tcDashboard.SizeMode      = TabSizeMode.Fixed;
+            tcDashboard.Size = new Size(1403, 840);
+            tcDashboard.SizeMode = TabSizeMode.Fixed;
+            tcDashboard.TabIndex = 0;
             // 
             // tpDashboard
             // 
@@ -102,10 +105,10 @@ namespace Test
             tpDashboard.Controls.Add(groupBox3);
             tpDashboard.Controls.Add(groupBox2);
             tpDashboard.Controls.Add(groupBox1);
-            tpDashboard.Location = new Point(4, 29);
+            tpDashboard.Location = new Point(4, 44);
             tpDashboard.Name = "tpDashboard";
             tpDashboard.Padding = new Padding(3);
-            tpDashboard.Size = new Size(1395, 807);
+            tpDashboard.Size = new Size(1395, 792);
             tpDashboard.TabIndex = 0;
             tpDashboard.Text = "Dashboard";
             // 
@@ -326,17 +329,6 @@ namespace Test
             groupBox1.TabIndex = 0;
             groupBox1.TabStop = false;
             // 
-            // lbScaleModel
-            // 
-            lbScaleModel.AutoSize = true;
-            lbScaleModel.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
-            lbScaleModel.ForeColor = Color.FromArgb(100, 116, 139);
-            lbScaleModel.Location = new Point(10, 316);
-            lbScaleModel.Name = "lbScaleModel";
-            lbScaleModel.Size = new Size(54, 20);
-            lbScaleModel.TabIndex = 7;
-            lbScaleModel.Text = "Model: -";
-            // 
             // lbScaleSN
             // 
             lbScaleSN.AutoSize = true;
@@ -344,9 +336,20 @@ namespace Test
             lbScaleSN.ForeColor = Color.FromArgb(100, 116, 139);
             lbScaleSN.Location = new Point(230, 316);
             lbScaleSN.Name = "lbScaleSN";
-            lbScaleSN.Size = new Size(41, 20);
+            lbScaleSN.Size = new Size(46, 20);
             lbScaleSN.TabIndex = 8;
             lbScaleSN.Text = "S/N: -";
+            // 
+            // lbScaleModel
+            // 
+            lbScaleModel.AutoSize = true;
+            lbScaleModel.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+            lbScaleModel.ForeColor = Color.FromArgb(100, 116, 139);
+            lbScaleModel.Location = new Point(10, 316);
+            lbScaleModel.Name = "lbScaleModel";
+            lbScaleModel.Size = new Size(61, 20);
+            lbScaleModel.TabIndex = 7;
+            lbScaleModel.Text = "Model: -";
             // 
             // lbStatusconnection
             // 
@@ -438,10 +441,10 @@ namespace Test
             tpAnalytics.BackColor = Color.FromArgb(244, 246, 249);
             tpAnalytics.Controls.Add(pnlStats);
             tpAnalytics.Controls.Add(plotViewLiveChart);
-            tpAnalytics.Location = new Point(4, 29);
+            tpAnalytics.Location = new Point(4, 44);
             tpAnalytics.Name = "tpAnalytics";
             tpAnalytics.Padding = new Padding(3);
-            tpAnalytics.Size = new Size(1395, 807);
+            tpAnalytics.Size = new Size(1395, 792);
             tpAnalytics.TabIndex = 2;
             tpAnalytics.Text = "📈 Analytics";
             // 
@@ -567,10 +570,10 @@ namespace Test
             tpDatasheet.Controls.Add(btnExportdata);
             tpDatasheet.Controls.Add(label12);
             tpDatasheet.Controls.Add(dgvWeightsheet);
-            tpDatasheet.Location = new Point(4, 29);
+            tpDatasheet.Location = new Point(4, 44);
             tpDatasheet.Name = "tpDatasheet";
             tpDatasheet.Padding = new Padding(3);
-            tpDatasheet.Size = new Size(1395, 807);
+            tpDatasheet.Size = new Size(1395, 792);
             tpDatasheet.TabIndex = 1;
             tpDatasheet.Text = "Data Sheet";
             // 
@@ -670,6 +673,10 @@ namespace Test
             trayMenuExit.Size = new Size(173, 24);
             trayMenuExit.Text = "Thoát";
             // 
+            // sqliteConnection1
+            // 
+            sqliteConnection1.DefaultTimeout = 30;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -751,5 +758,6 @@ namespace Test
         private ToolStripMenuItem trayMenuOpen;
         private ToolStripSeparator trayMenuSep;
         private ToolStripMenuItem trayMenuExit;
+        private Microsoft.Data.Sqlite.SqliteConnection sqliteConnection1;
     }
 }
