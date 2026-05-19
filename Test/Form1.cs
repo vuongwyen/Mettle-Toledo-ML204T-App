@@ -53,7 +53,6 @@ namespace Test
 
             trayIcon.Icon = this.Icon;
             trayIcon.MouseDoubleClick += (s, e) => RestoreFromTray();
-            this.Resize += Form1_Resize;
 
             this.FormClosing += Form1_FormClosing;
 
@@ -95,9 +94,12 @@ namespace Test
 
         private void ConnectionManager_OnStateChanged(bool isConnected, bool isReconnecting)
         {
+            // [FIX B6] Guard: tránh crash ObjectDisposedException khi Form đã đóng
+            if (this.IsDisposed || !this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(() => ConnectionManager_OnStateChanged(isConnected, isReconnecting)));
+                try { this.BeginInvoke(new Action(() => ConnectionManager_OnStateChanged(isConnected, isReconnecting))); }
+                catch (ObjectDisposedException) { }
                 return;
             }
 
@@ -166,9 +168,12 @@ namespace Test
 
         private void ConnectionManager_OnDataReceived(string rawData)
         {
+            // [FIX B6] Guard: tránh crash ObjectDisposedException khi Form đã đóng
+            if (this.IsDisposed || !this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(() => ConnectionManager_OnDataReceived(rawData)));
+                try { this.BeginInvoke(new Action(() => ConnectionManager_OnDataReceived(rawData))); }
+                catch (ObjectDisposedException) { }
                 return;
             }
 
@@ -258,7 +263,8 @@ namespace Test
 
             using var font      = new Font("Segoe UI", fontSize, fontStyle);
             using var textBrush = new SolidBrush(textColor);
-            var sf = new StringFormat
+            // [FIX B7] using để tránh GDI+ resource leak
+            using var sf = new StringFormat
             {
                 Alignment     = StringAlignment.Center,
                 LineAlignment = StringAlignment.Center
@@ -330,8 +336,10 @@ namespace Test
                 _sessionMin = _sessionMin.HasValue ? Math.Min(_sessionMin.Value, data.Weight) : data.Weight;
                 _sessionMax = _sessionMax.HasValue ? Math.Max(_sessionMax.Value, data.Weight) : data.Weight;
 
-                lbStatMinValue.Text = $"{_sessionMin:F4} g";
-                lbStatMaxValue.Text = $"{_sessionMax:F4} g";
+                // [FIX B8] Dùng unit thực tế từ scale data thay vì hardcoded "g"
+                string unit = _lastScaleData?.Unit ?? "g";
+                lbStatMinValue.Text = $"{_sessionMin:F4} {unit}";
+                lbStatMaxValue.Text = $"{_sessionMax:F4} {unit}";
             }
 
             _plotModel.InvalidatePlot(true);
@@ -508,10 +516,7 @@ namespace Test
             }
         }
 
-        private void Form1_Resize(object? sender, EventArgs e)
-        {
-            // Không thực hiện ẩn ứng dụng khi thu nhỏ
-        }
+        // [FIX N2] Đã xóa Form1_Resize handler rỗng
 
         private void RestoreFromTray()
         {

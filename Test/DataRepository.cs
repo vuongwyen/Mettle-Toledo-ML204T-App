@@ -25,7 +25,7 @@ namespace Test
                 using (var command = new SqliteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Timestamp", record.Timestamp);
-                    command.Parameters.AddWithValue("@Weight", record.Weight);
+                    command.Parameters.AddWithValue("@Weight", record.Weight.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     command.Parameters.AddWithValue("@Unit", record.Unit ?? "g");
                     command.Parameters.AddWithValue("@NatCode", string.IsNullOrEmpty(record.NatCode) ? (object)DBNull.Value : record.NatCode);
                     command.Parameters.AddWithValue("@Batch", string.IsNullOrEmpty(record.Batch) ? (object)DBNull.Value : record.Batch);
@@ -54,7 +54,7 @@ namespace Test
                         {
                             Id = reader.GetInt64(0),
                             Timestamp = reader.GetDateTime(1),
-                            Weight = reader.GetDecimal(2),
+                            Weight = decimal.Parse(reader.GetString(2), System.Globalization.CultureInfo.InvariantCulture),
                             Unit = reader.GetString(3),
                             NatCode = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                             Batch = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
@@ -71,7 +71,7 @@ namespace Test
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
                 connection.Open();
-                string query = "SELECT COUNT(*) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now')";
+                string query = "SELECT COUNT(*) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now', 'localtime')";
                 using (var command = new SqliteCommand(query, connection))
                 {
                     var result = command.ExecuteScalar();
@@ -86,8 +86,8 @@ namespace Test
             {
                 connection.Open();
                 string query = string.IsNullOrEmpty(batch)
-                    ? "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now')"
-                    : "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE Batch = @Batch AND DATE(Timestamp) = DATE('now')";
+                    ? "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now', 'localtime')"
+                    : "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE Batch = @Batch AND DATE(Timestamp) = DATE('now', 'localtime')";
 
                 using (var command = new SqliteCommand(query, connection))
                 {

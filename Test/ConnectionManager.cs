@@ -13,14 +13,23 @@ namespace Test
         private StreamReader? _reader;
         private StreamWriter? _writer;
         private CancellationTokenSource? _cts;
-        
+
+        // [FIX B2] SemaphoreSlim ngăn nhiều reconnect loop chạy song song
+        private readonly SemaphoreSlim _connectLock = new(1, 1);
+
         private string _ip = string.Empty;
         private int _port = 0;
         private bool _isManualDisconnect = false;
         private bool _isReconnecting = false;
 
-        public bool IsConnected    => _client != null && _client.Connected;
+        public bool IsConnected    => _client?.Connected == true;
         public bool IsReconnecting => _isReconnecting;
+
+        public ScaleInfo? ConnectedScale => _connectedScale;
+        private ScaleInfo? _connectedScale;
+
+        public string? LastError => _lastError;
+        private string? _lastError;
 
         // isConnected, isReconnecting
         public event Action<bool, bool>? OnStateChanged;
@@ -38,79 +47,91 @@ namespace Test
 
         private async Task EstablishConnectionAsync()
         {
-            DisconnectInternal();
-            _cts = new CancellationTokenSource();
-            _connectedScale = null;
-
+            // [FIX B2] Nếu đang có 1 lần connect/reconnect chạy rồi thì bỏ qua
+            if (!await _connectLock.WaitAsync(0)) return;
             try
             {
-                _client = new TcpClient();
+                DisconnectInternal();
+                _connectedScale = null;
 
-                // ── Bước 1: TCP connect với timeout 5 giây ────────────────
-                using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                // [FIX B1] Dispose CTS cũ trước khi tạo mới — tránh memory leak
+                _cts?.Dispose();
+                _cts = new CancellationTokenSource();
+
                 try
                 {
-                    await _client.ConnectAsync(_ip, _port, connectCts.Token);
+                    _client = new TcpClient();
+
+                    // ── Bước 1: TCP connect với timeout 5 giây ────────────────
+                    using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    try
+                    {
+                        await _client.ConnectAsync(_ip, _port, connectCts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw new TimeoutException(
+                            $"Không thể kết nối tới {_ip}:{_port} sau 5 giây (Host không phản hồi).");
+                    }
+
+                    var stream = _client.GetStream();
+                    _reader = new StreamReader(stream, Encoding.ASCII);
+                    _writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true };
+
+                    // ── Bước 2: MT-SICS Handshake — Xác thực thiết bị ──────────
+                    await _writer.WriteLineAsync("I2");
+                    string? i2Response = await ReadLineWithTimeoutAsync(3000);
+
+                    if (string.IsNullOrEmpty(i2Response) || !i2Response.StartsWith("I2 A"))
+                    {
+                        throw new InvalidOperationException(
+                            $"Thiết bị tại {_ip}:{_port} không phản hồi lệnh nhận diện (I2).\n" +
+                            $"Response: \"{i2Response ?? "(timeout)"}\"");
+                    }
+
+                    await _writer.WriteLineAsync("I4");
+                    string? i4Response = await ReadLineWithTimeoutAsync(2000);
+
+                    _connectedScale = ParseScaleIdentification(i2Response, i4Response);
+                    _connectedScale.IpAddress = _ip;
+
+                    // ── Bước 3: Xác thực thành công ──────────────────────────
+                    _isReconnecting = false;
+                    OnStateChanged?.Invoke(true, false);
+
+                    // Bắt đầu gửi lệnh SIR để lấy cân nặng liên tục
+                    await _writer.WriteLineAsync("SIR");
+
+                    _ = Task.Run(() => ReadLoopAsync(_cts.Token), _cts.Token);
                 }
-                catch (OperationCanceledException)
+                catch (Exception ex)
                 {
-                    throw new TimeoutException($"Không thể kết nối tới {_ip}:{_port} sau 5 giây (Host không phản hồi).");
+                    DisconnectInternal();
+                    if (!_isManualDisconnect)
+                    {
+                        _lastError = ex.Message;
+                        _isReconnecting = true;
+                        OnStateChanged?.Invoke(false, true);
+                        _ = Task.Run(() => ReconnectLoopAsync());
+                    }
                 }
-
-                var stream = _client.GetStream();
-                _reader = new StreamReader(stream, Encoding.ASCII);
-                _writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true };
-
-                // ── Bước 2: MT-SICS Handshake — Xác thực thiết bị ──────────
-                // Ưu tiên lệnh I2 (Model & Capacity) và I4 (Serial Number)
-                
-                // 2a. Lấy Model & Capacity (Lệnh I2)
-                await _writer.WriteLineAsync("I2");
-                string? i2Response = await ReadLineWithTimeoutAsync(3000);
-                
-                if (string.IsNullOrEmpty(i2Response) || !i2Response.StartsWith("I2 A"))
-                {
-                    throw new InvalidOperationException(
-                        $"Thiết bị tại {_ip}:{_port} không phản hồi lệnh nhận diện (I2).\n" +
-                        $"Response: \"{i2Response ?? "(timeout)"}\"");
-                }
-
-                // 2b. Lấy Serial Number (Lệnh I4)
-                await _writer.WriteLineAsync("I4");
-                string? i4Response = await ReadLineWithTimeoutAsync(2000);
-
-                // Parse thông tin
-                _connectedScale = ParseScaleIdentification(i2Response, i4Response);
-                _connectedScale.IpAddress = _ip;
-
-                // ── Bước 3: Xác thực thành công ──────────────────────────
-                _isReconnecting = false;
-                OnStateChanged?.Invoke(true, false);
-                
-                // Bắt đầu gửi lệnh SIR để lấy cân nặng liên tục
-                await _writer.WriteLineAsync("SIR");
-
-                _ = Task.Run(() => ReadLoopAsync(_cts.Token), _cts.Token);
             }
-            catch (Exception ex)
+            finally
             {
-                DisconnectInternal();
-                if (!_isManualDisconnect)
-                {
-                    _lastError = ex.Message;
-                    _isReconnecting = true;
-                    OnStateChanged?.Invoke(false, true);
-                    _ = Task.Run(() => ReconnectLoopAsync());
-                }
+                _connectLock.Release();
             }
         }
 
         private async Task<string?> ReadLineWithTimeoutAsync(int timeoutMs)
         {
+            // [FIX B3] Null-check thay vì null-forgiving operator
+            var reader = _reader;
+            if (reader == null) return null;
+
             using var timeoutCts = new CancellationTokenSource(timeoutMs);
             try
             {
-                return await _reader!.ReadLineAsync(timeoutCts.Token);
+                return await reader.ReadLineAsync(timeoutCts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -121,14 +142,12 @@ namespace Test
         private ScaleInfo ParseScaleIdentification(string i2, string? i4)
         {
             var info = new ScaleInfo();
-            
+
             // Parse I2: I2 A "MODEL CAPACITY UNIT"
-            // Ví dụ: I2 A "MS204S 220.0090 g"
             var i2Match = System.Text.RegularExpressions.Regex.Match(i2, "I2 A \"(.*)\"");
             if (i2Match.Success)
             {
-                string fullInfo = i2Match.Groups[1].Value;
-                info.Model = fullInfo; // Hoặc split ra nếu cần chi tiết hơn
+                info.Model = i2Match.Groups[1].Value;
             }
 
             // Parse I4: I4 A "SERIAL"
@@ -144,28 +163,6 @@ namespace Test
             return info;
         }
 
-        private static bool IsMtSicsResponse(string? response)
-        {
-            if (string.IsNullOrWhiteSpace(response)) return false;
-
-            // MT-SICS weight response: "S S 0.0000 g", "S D -0.0023 g", "S I", "S +"
-            if (response.Length >= 3 && response.StartsWith("S "))
-            {
-                char status = response[2];
-                return status == 'S' || status == 'D' || status == 'I'
-                    || status == '+' || status == '-';
-            }
-
-            return response == "ES" || response.StartsWith("I2 A") || response.StartsWith("I4 A");
-        }
-
-        public ScaleInfo? ConnectedScale => _connectedScale;
-        private ScaleInfo? _connectedScale;
-
-
-        public string? LastError => _lastError;
-        private string? _lastError;
-
 
         private async Task ReadLoopAsync(CancellationToken token)
         {
@@ -173,19 +170,30 @@ namespace Test
             {
                 while (!token.IsCancellationRequested && IsConnected)
                 {
-                    string? line = await _reader!.ReadLineAsync(token);
-                    if (line == null) break; 
-                    
+                    // [FIX B3] Copy reference cục bộ — tránh null giữa chừng khi Disconnect
+                    var reader = _reader;
+                    if (reader == null) break;
+
+                    string? line = await reader.ReadLineAsync(token);
+                    if (line == null) break;
+
                     OnDataReceived?.Invoke(line);
                 }
             }
-            catch (Exception)
+            catch (OperationCanceledException)
             {
+                // Normal cancellation — không cần xử lý
+            }
+            catch (Exception ex)
+            {
+                // [FIX B5] Log ra Debug thay vì nuốt im lặng
+                System.Diagnostics.Debug.WriteLine($"[ReadLoop] {ex.GetType().Name}: {ex.Message}");
             }
             finally
             {
                 if (!_isManualDisconnect && !token.IsCancellationRequested)
                 {
+                    _isReconnecting = true;
                     OnStateChanged?.Invoke(false, true);
                     _ = Task.Run(() => ReconnectLoopAsync());
                 }
@@ -217,11 +225,15 @@ namespace Test
         private void DisconnectInternal()
         {
             try { _cts?.Cancel(); } catch { }
-            
+
+            // [FIX B1] Dispose CTS khi disconnect
+            _cts?.Dispose();
+            _cts = null;
+
             _writer?.Dispose();
             _reader?.Dispose();
             _client?.Dispose();
-            
+
             _writer = null;
             _reader = null;
             _client = null;
@@ -230,6 +242,7 @@ namespace Test
         public void Dispose()
         {
             Disconnect();
+            _connectLock.Dispose();
         }
     }
 }
