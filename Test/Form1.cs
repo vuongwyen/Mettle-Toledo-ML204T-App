@@ -360,27 +360,18 @@ namespace Test
 
         private void ProcessAutoPolling(ScaleData data)
         {
-            switch (_autoPollingState)
+            // Nếu khối lượng <= ZeroThreshold (kể cả chưa ổn định), ta coi như cân đã được làm trống và sẵn sàng cho lần cân tiếp theo.
+            if (data.Weight <= ZeroThreshold)
             {
-                case AutoPollingState.WaitingForZero:
-                    if (data.Weight <= ZeroThreshold && data.IsStable)
-                    {
-                        _autoPollingState = AutoPollingState.ReadyToWeigh;
-                    }
-                    break;
-                case AutoPollingState.ReadyToWeigh:
-                    if (data.Weight > ZeroThreshold && data.IsStable)
-                    {
-                        SaveCurrentWeight(true);
-                        _autoPollingState = AutoPollingState.WeightCaptured;
-                    }
-                    break;
-                case AutoPollingState.WeightCaptured:
-                    if (data.Weight <= ZeroThreshold)
-                    {
-                        _autoPollingState = AutoPollingState.WaitingForZero;
-                    }
-                    break;
+                _autoPollingState = AutoPollingState.ReadyToWeigh;
+                return;
+            }
+
+            // Nếu đang ở trạng thái sẵn sàng, khối lượng lớn hơn ZeroThreshold và đã ổn định -> Chốt số
+            if (_autoPollingState == AutoPollingState.ReadyToWeigh && data.IsStable)
+            {
+                SaveCurrentWeight(true);
+                _autoPollingState = AutoPollingState.WeightCaptured;
             }
         }
 

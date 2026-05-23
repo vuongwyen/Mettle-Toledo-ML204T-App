@@ -8,7 +8,7 @@ namespace Test
         private const string DatabaseFileName = "ScaleData.db";
 
         // [FIX N3] Schema version tracking — tăng khi có thay đổi schema
-        private const int CurrentSchemaVersion = 2;
+        private const int CurrentSchemaVersion = 3;
 
         public static string GetConnectionString()
         {
@@ -32,7 +32,8 @@ namespace Test
                         NatCode TEXT,
                         Batch TEXT,
                         SampleName TEXT,
-                        Location TEXT
+                        Location TEXT,
+                        IsSynced INTEGER NOT NULL DEFAULT 0
                     );";
 
                 using (var command = new SqliteCommand(createTableQuery, connection))
@@ -40,27 +41,26 @@ namespace Test
                     command.ExecuteNonQuery();
                 }
 
-                // Migrate DB cũ: nếu cột Weight đang là REAL thì đổi sang TEXT
-                MigrateIfNeeded(connection);
+                // Migrate DB cũ theo thứ tự
+                MigrateWeightToText(connection);  // v1 -> v2: Weight REAL -> TEXT
+                MigrateAddIsSynced(connection);    // v2 -> v3: Thêm cột IsSynced
             }
         }
 
         /// <summary>
-        /// Xử lý migration cho DB đã tồn tại trước đó với cột Weight REAL.
-        /// SQLite không hỗ trợ ALTER COLUMN, nên kiểm tra type qua pragma.
-        /// Nếu cột đã là TEXT thì skip — không cần tạo lại bảng.
+        /// v1 → v2: Đổi cột Weight từ REAL sang TEXT để giữ decimal precision.
+        /// SQLite không hỗ trợ ALTER COLUMN nên dùng table-swap pattern.
         /// </summary>
-        private static void MigrateIfNeeded(SqliteConnection connection)
+        private static void MigrateWeightToText(SqliteConnection connection)
         {
-            // Kiểm tra kiểu cột Weight hiện tại
             using var pragmaCmd = new SqliteCommand("PRAGMA table_info(ScaleRecords);", connection);
             using var reader = pragmaCmd.ExecuteReader();
 
             bool needsMigration = false;
             while (reader.Read())
             {
-                string columnName = reader.GetString(1); // name
-                string columnType = reader.GetString(2); // type
+                string columnName = reader.GetString(1);
+                string columnType = reader.GetString(2);
                 if (columnName.Equals("Weight", StringComparison.OrdinalIgnoreCase)
                     && columnType.Equals("REAL", StringComparison.OrdinalIgnoreCase))
                 {
@@ -72,7 +72,6 @@ namespace Test
 
             if (!needsMigration) return;
 
-            // SQLite không hỗ trợ ALTER COLUMN → tạo bảng mới, copy data, swap
             using var transaction = connection.BeginTransaction();
             try
             {
@@ -87,7 +86,8 @@ namespace Test
                         NatCode TEXT,
                         Batch TEXT,
                         SampleName TEXT,
-                        Location TEXT
+                        Location TEXT,
+                        IsSynced INTEGER NOT NULL DEFAULT 0
                     );",
                     @"INSERT INTO ScaleRecords (Id, Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location)
                       SELECT Id, Timestamp, CAST(Weight AS TEXT), Unit, NatCode, Batch, SampleName, Location
@@ -102,13 +102,47 @@ namespace Test
                 }
 
                 transaction.Commit();
-                System.Diagnostics.Debug.WriteLine("[DB Migration] Weight column migrated from REAL to TEXT successfully.");
+                System.Diagnostics.Debug.WriteLine("[DB Migration v2] Weight: REAL -> TEXT OK.");
             }
             catch (Exception ex)
             {
                 transaction.Rollback();
-                System.Diagnostics.Debug.WriteLine($"[DB Migration] Failed: {ex.Message}");
-                // Không throw — app vẫn hoạt động được với REAL, chỉ giảm precision
+                System.Diagnostics.Debug.WriteLine($"[DB Migration v2] Failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// v2 → v3: Thêm cột IsSynced nếu chưa tồn tại (SQLite hỗ trợ ADD COLUMN).
+        /// </summary>
+        private static void MigrateAddIsSynced(SqliteConnection connection)
+        {
+            using var pragmaCmd = new SqliteCommand("PRAGMA table_info(ScaleRecords);", connection);
+            using var reader = pragmaCmd.ExecuteReader();
+
+            bool columnExists = false;
+            while (reader.Read())
+            {
+                if (reader.GetString(1).Equals("IsSynced", StringComparison.OrdinalIgnoreCase))
+                {
+                    columnExists = true;
+                    break;
+                }
+            }
+            reader.Close();
+
+            if (columnExists) return;
+
+            try
+            {
+                using var cmd = new SqliteCommand(
+                    "ALTER TABLE ScaleRecords ADD COLUMN IsSynced INTEGER NOT NULL DEFAULT 0;",
+                    connection);
+                cmd.ExecuteNonQuery();
+                System.Diagnostics.Debug.WriteLine("[DB Migration v3] IsSynced column added OK.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DB Migration v3] Failed: {ex.Message}");
             }
         }
     }
