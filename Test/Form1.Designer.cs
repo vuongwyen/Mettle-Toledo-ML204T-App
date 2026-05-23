@@ -63,6 +63,8 @@ namespace Test
             tpDatasheet = new TabPage();
             btnExportdata = new Button();
             btnImportData = new Button();
+            lbSearch = new Label();
+            tboSearch = new TextBox();
             label12 = new Label();
             dgvWeightsheet = new DataGridView();
             trayIcon = new NotifyIcon(components);
@@ -568,6 +570,8 @@ namespace Test
             // tpDatasheet
             // 
             tpDatasheet.BackColor = Color.FromArgb(244, 246, 249);
+            tpDatasheet.Controls.Add(tboSearch);
+            tpDatasheet.Controls.Add(lbSearch);
             tpDatasheet.Controls.Add(btnImportData);
             tpDatasheet.Controls.Add(btnExportdata);
             tpDatasheet.Controls.Add(label12);
@@ -606,6 +610,29 @@ namespace Test
             btnImportData.TabIndex = 3;
             btnImportData.Text = "📥  Nhập dữ liệu (.xlsx / .csv)";
             btnImportData.UseVisualStyleBackColor = false;
+            // 
+            // lbSearch
+            // 
+            lbSearch.AutoSize = true;
+            lbSearch.BackColor = Color.Transparent;
+            lbSearch.Font = new Font("Segoe UI", 10.8F);
+            lbSearch.ForeColor = Color.FromArgb(100, 116, 139);
+            lbSearch.Location = new Point(460, 25);
+            lbSearch.Name = "lbSearch";
+            lbSearch.Size = new Size(135, 25);
+            lbSearch.TabIndex = 4;
+            lbSearch.Text = "Tìm kiếm nhanh:";
+            // 
+            // tboSearch
+            // 
+            tboSearch.BackColor = Color.White;
+            tboSearch.BorderStyle = BorderStyle.FixedSingle;
+            tboSearch.Font = new Font("Segoe UI", 10.8F);
+            tboSearch.ForeColor = Color.FromArgb(30, 41, 59);
+            tboSearch.Location = new Point(600, 23);
+            tboSearch.Name = "tboSearch";
+            tboSearch.Size = new Size(145, 31);
+            tboSearch.TabIndex = 5;
             // 
             // label12
             // 
@@ -756,6 +783,8 @@ namespace Test
         private Label       label6;
         private Button      btnImportData;
         private Button      btnExportdata;
+        private Label       lbSearch;
+        private TextBox     tboSearch;
         private Label       label12;
         private DataGridView dgvWeightsheet;
         private CheckBox    chkAutoPolling;

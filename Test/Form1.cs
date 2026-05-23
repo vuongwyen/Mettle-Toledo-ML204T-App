@@ -16,6 +16,7 @@ namespace Test
         private Test.Services.CsvImportService _csvImportService;
         private Test.Services.ExcelImportService _excelImportService;
         private ScaleData? _lastScaleData;
+        private System.Collections.Generic.List<ScaleRecord> _allRecords = new System.Collections.Generic.List<ScaleRecord>();
 
         // Analytics
         private PlotModel   _plotModel   = null!;
@@ -50,6 +51,7 @@ namespace Test
             btnPolling.Click      += btnPolling_Click;
             btnExportdata.Click   += btnExportdata_Click;
             btnImportData.Click   += btnImportData_Click;
+            tboSearch.TextChanged += tboSearch_TextChanged;
 
             tboNat.KeyDown        += Tbo_KeyDown;
             tboBatch.KeyDown      += Tbo_KeyDown;
@@ -467,14 +469,44 @@ namespace Test
         {
             try
             {
-                var data = _repository.GetAll();
-                dgvWeightsheet.DataSource = data;
+                _allRecords = _repository.GetAll();
+                ApplyFilter();
                 UpdateStats();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Lỗi tải dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void ApplyFilter()
+        {
+            string keyword = tboSearch.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(keyword))
+            {
+                dgvWeightsheet.DataSource = _allRecords;
+            }
+            else
+            {
+                var filtered = new System.Collections.Generic.List<ScaleRecord>();
+                foreach (var record in _allRecords)
+                {
+                    if ((record.NatCode != null && record.NatCode.ToLower().Contains(keyword)) ||
+                        (record.Batch != null && record.Batch.ToLower().Contains(keyword)) ||
+                        (record.SampleName != null && record.SampleName.ToLower().Contains(keyword)) ||
+                        (record.Location != null && record.Location.ToLower().Contains(keyword)) ||
+                        (record.Unit != null && record.Unit.ToLower().Contains(keyword)))
+                    {
+                        filtered.Add(record);
+                    }
+                }
+                dgvWeightsheet.DataSource = filtered;
+            }
+        }
+
+        private void tboSearch_TextChanged(object? sender, EventArgs e)
+        {
+            ApplyFilter();
         }
 
         private void btnExportdata_Click(object? sender, EventArgs e)
