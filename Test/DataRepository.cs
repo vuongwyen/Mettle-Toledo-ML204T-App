@@ -37,6 +37,48 @@ namespace Test
             }
         }
 
+        /// <summary>
+        /// Inserts multiple scale measurements efficiently using a transaction.
+        /// </summary>
+        public void InsertBatch(IEnumerable<ScaleRecord> records)
+        {
+            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    string query = @"
+                        INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location)
+                        VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location)";
+
+                    using (var command = new SqliteCommand(query, connection, transaction))
+                    {
+                        command.Parameters.Add("@Timestamp", SqliteType.Text);
+                        command.Parameters.Add("@Weight", SqliteType.Text);
+                        command.Parameters.Add("@Unit", SqliteType.Text);
+                        command.Parameters.Add("@NatCode", SqliteType.Text);
+                        command.Parameters.Add("@Batch", SqliteType.Text);
+                        command.Parameters.Add("@SampleName", SqliteType.Text);
+                        command.Parameters.Add("@Location", SqliteType.Text);
+
+                        foreach (var record in records)
+                        {
+                            command.Parameters["@Timestamp"].Value = record.Timestamp;
+                            command.Parameters["@Weight"].Value = record.Weight.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            command.Parameters["@Unit"].Value = record.Unit ?? "g";
+                            command.Parameters["@NatCode"].Value = string.IsNullOrEmpty(record.NatCode) ? (object)DBNull.Value : record.NatCode;
+                            command.Parameters["@Batch"].Value = string.IsNullOrEmpty(record.Batch) ? (object)DBNull.Value : record.Batch;
+                            command.Parameters["@SampleName"].Value = string.IsNullOrEmpty(record.SampleName) ? (object)DBNull.Value : record.SampleName;
+                            command.Parameters["@Location"].Value = string.IsNullOrEmpty(record.Location) ? (object)DBNull.Value : record.Location;
+
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                    transaction.Commit();
+                }
+            }
+        }
+
         public List<ScaleRecord> GetAll()
         {
             var records = new List<ScaleRecord>();

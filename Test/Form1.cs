@@ -13,6 +13,8 @@ namespace Test
         private DataRepository _repository;
         private CsvExportService _csvExportService;
         private ExcelExportService _excelExportService;
+        private Test.Services.CsvImportService _csvImportService;
+        private Test.Services.ExcelImportService _excelImportService;
         private ScaleData? _lastScaleData;
 
         // Analytics
@@ -41,10 +43,13 @@ namespace Test
             _repository       = new DataRepository();
             _csvExportService  = new CsvExportService();
             _excelExportService = new ExcelExportService();
+            _csvImportService = new Test.Services.CsvImportService();
+            _excelImportService = new Test.Services.ExcelImportService();
 
             btnConnectIpadd.Click += btnConnectIpadd_Click;
             btnPolling.Click      += btnPolling_Click;
             btnExportdata.Click   += btnExportdata_Click;
+            btnImportData.Click   += btnImportData_Click;
 
             tboNat.KeyDown        += Tbo_KeyDown;
             tboBatch.KeyDown      += Tbo_KeyDown;
@@ -504,6 +509,44 @@ namespace Test
             catch (Exception ex)
             {
                 MessageBox.Show($"Lỗi xuất dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnImportData_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                using (var dlg = new OpenFileDialog())
+                {
+                    dlg.Title = "Nhập dữ liệu cân";
+                    dlg.Filter = "Excel & CSV files (*.xlsx;*.csv)|*.xlsx;*.csv|Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
+
+                    if (dlg.ShowDialog() == DialogResult.OK)
+                    {
+                        string ext = System.IO.Path.GetExtension(dlg.FileName).ToLower();
+                        System.Collections.Generic.List<ScaleRecord> records;
+
+                        if (ext == ".xlsx")
+                            records = _excelImportService.Import(dlg.FileName);
+                        else
+                            records = _csvImportService.Import(dlg.FileName);
+
+                        if (records.Count > 0)
+                        {
+                            _repository.InsertBatch(records);
+                            LoadDataToGrid();
+                            MessageBox.Show($"Đã nhập thành công {records.Count} dòng dữ liệu!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Không tìm thấy dữ liệu hợp lệ trong file.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi nhập dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

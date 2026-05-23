@@ -62,6 +62,7 @@ namespace Test
             plotViewLiveChart = new OxyPlot.WindowsForms.PlotView();
             tpDatasheet = new TabPage();
             btnExportdata = new Button();
+            btnImportData = new Button();
             label12 = new Label();
             dgvWeightsheet = new DataGridView();
             trayIcon = new NotifyIcon(components);
@@ -567,6 +568,7 @@ namespace Test
             // tpDatasheet
             // 
             tpDatasheet.BackColor = Color.FromArgb(244, 246, 249);
+            tpDatasheet.Controls.Add(btnImportData);
             tpDatasheet.Controls.Add(btnExportdata);
             tpDatasheet.Controls.Add(label12);
             tpDatasheet.Controls.Add(dgvWeightsheet);
@@ -590,6 +592,20 @@ namespace Test
             btnExportdata.TabIndex = 2;
             btnExportdata.Text = "📤  Xuất báo cáo (.xlsx / .csv)";
             btnExportdata.UseVisualStyleBackColor = false;
+            // 
+            // btnImportData
+            // 
+            btnImportData.BackColor = Color.FromArgb(34, 197, 94);
+            btnImportData.FlatAppearance.BorderSize = 0;
+            btnImportData.FlatStyle = FlatStyle.Flat;
+            btnImportData.Font = new Font("Segoe UI", 10.8F, FontStyle.Bold);
+            btnImportData.ForeColor = Color.White;
+            btnImportData.Location = new Point(755, 13);
+            btnImportData.Name = "btnImportData";
+            btnImportData.Size = new Size(305, 53);
+            btnImportData.TabIndex = 3;
+            btnImportData.Text = "📥  Nhập dữ liệu (.xlsx / .csv)";
+            btnImportData.UseVisualStyleBackColor = false;
             // 
             // label12
             // 
@@ -738,6 +754,7 @@ namespace Test
         private TextBox     tboNat;
         private Label       label7;
         private Label       label6;
+        private Button      btnImportData;
         private Button      btnExportdata;
         private Label       label12;
         private DataGridView dgvWeightsheet;
