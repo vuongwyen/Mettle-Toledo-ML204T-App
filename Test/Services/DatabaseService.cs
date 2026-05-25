@@ -15,7 +15,7 @@ namespace Test
     /// </summary>
     public sealed class DatabaseService : IDisposable
     {
-        private readonly SemaphoreSlim _dbLock = new(1, 1);
+        // [R-02] _dbLock removido — đã chuyển sang DatabaseHelper.DbAccessLock (static, chia sẻ với DataRepository)
         private readonly System.Threading.Timer _syncTimer;
         private readonly string _deviceId;
         private const int SyncBatchSize = 100;
@@ -74,7 +74,7 @@ namespace Test
             bool isOnline = await NetworkService.Instance.CheckConnectionAsync();
             if (!isOnline) return;
 
-            await _dbLock.WaitAsync();
+            await DatabaseHelper.DbAccessLock.WaitAsync();
             List<(long Id, Models.ScaleRecord ApiModel)> batch;
             try
             {
@@ -82,7 +82,7 @@ namespace Test
             }
             finally
             {
-                _dbLock.Release();
+                DatabaseHelper.DbAccessLock.Release();
             }
 
             if (batch.Count == 0) return;
@@ -102,14 +102,14 @@ namespace Test
                 .Select(x => x.Id)
                 .ToList();
 
-            await _dbLock.WaitAsync();
+            await DatabaseHelper.DbAccessLock.WaitAsync();
             try
             {
                 MarkAsSynced(localIdsToMark);
             }
             finally
             {
-                _dbLock.Release();
+                DatabaseHelper.DbAccessLock.Release();
             }
 
             System.Diagnostics.Debug.WriteLine($"[DatabaseService] Marked {localIdsToMark.Count} record(s) as synced.");
@@ -121,7 +121,7 @@ namespace Test
 
         private async Task InsertAsync(ScaleRecord record, bool isSynced)
         {
-            await _dbLock.WaitAsync();
+            await DatabaseHelper.DbAccessLock.WaitAsync();
             try
             {
                 using var conn = new SqliteConnection(DatabaseHelper.GetConnectionString());
@@ -145,7 +145,7 @@ namespace Test
             }
             finally
             {
-                _dbLock.Release();
+                DatabaseHelper.DbAccessLock.Release();
             }
         }
 
@@ -171,7 +171,7 @@ namespace Test
                 {
                     Id         = Guid.NewGuid(), // Tạo Guid tạm để server nhận diện
                     Timestamp  = new DateTimeOffset(reader.GetDateTime(1), TimeSpan.FromHours(7)),
-                    Weight     = (double)decimal.Parse(reader.GetString(2), System.Globalization.CultureInfo.InvariantCulture),
+                    Weight     = decimal.Parse(reader.GetString(2), System.Globalization.CultureInfo.InvariantCulture),
                     Unit       = reader.GetString(3),
                     NatCode    = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                     Batch      = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
@@ -212,7 +212,7 @@ namespace Test
         {
             Id         = Guid.NewGuid(),
             Timestamp  = new DateTimeOffset(r.Timestamp, TimeSpan.FromHours(7)),
-            Weight     = (double)r.Weight,
+            Weight     = r.Weight,
             Unit       = r.Unit,
             NatCode    = r.NatCode,
             Batch      = r.Batch,
@@ -224,7 +224,7 @@ namespace Test
         public void Dispose()
         {
             _syncTimer.Dispose();
-            _dbLock.Dispose();
+            // DatabaseHelper.DbAccessLock không Dispose — static, sử dụng xuyên suốt vòng đời ứng dụng
         }
     }
 }

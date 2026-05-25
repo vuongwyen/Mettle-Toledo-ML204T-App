@@ -12,7 +12,7 @@ namespace Test.Models
         public DateTimeOffset Timestamp { get; set; }
 
         [JsonPropertyName("weight")]
-        public double Weight { get; set; }
+        public decimal Weight { get; set; }
 
         [JsonPropertyName("unit")]
         public string Unit { get; set; }

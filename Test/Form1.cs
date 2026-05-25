@@ -25,6 +25,12 @@ namespace Test
         private decimal?    _sessionMax;
         private const int   MaxChartPoints = 300;
 
+        // [R-01] Producer-Consumer: Background thread enqueues, WinForms Timer dequeues in batch.
+        // ConcurrentQueue<T> là lock-free — an toàn cho write từ background và read từ UI thread.
+        private readonly System.Collections.Concurrent.ConcurrentQueue<ScaleData> _dataQueue
+            = new System.Collections.Concurrent.ConcurrentQueue<ScaleData>();
+        private System.Windows.Forms.Timer _uiTimer = null!;
+
         private enum AutoPollingState
         {
             WaitingForZero,
@@ -66,6 +72,11 @@ namespace Test
             InitializeChart();
             LoadDataToGrid();
             UpdateStats();
+
+            // [R-01] UI refresh timer: thay thế BeginInvoke flooding bằng batch 100ms
+            _uiTimer = new System.Windows.Forms.Timer { Interval = 100 };
+            _uiTimer.Tick += UiTimer_Tick;
+            _uiTimer.Start();
 
             // Custom tab rendering
             tcDashboard.DrawItem += TcDashboard_DrawItem;
@@ -175,63 +186,74 @@ namespace Test
 
         private void ConnectionManager_OnDataReceived(string rawData)
         {
-            // [FIX B6] Guard: tránh crash ObjectDisposedException khi Form đã đóng
-            if (this.IsDisposed || !this.IsHandleCreated) return;
-            if (this.InvokeRequired)
-            {
-                try { this.BeginInvoke(new Action(() => ConnectionManager_OnDataReceived(rawData))); }
-                catch (ObjectDisposedException) { }
-                return;
-            }
-
+            // [R-01] Parse trên Background Thread, enqueue vào ConcurrentQueue.
+            // Không cần InvokeRequired/BeginInvoke — không trực tiếp chạm UI control.
             var scaleData = MtSicsParser.Parse(rawData);
             if (scaleData.HasValue)
+                _dataQueue.Enqueue(scaleData.Value);
+        }
+
+        /// <summary>
+        /// [R-01] Batch UI update chạy mỗi 100ms trên UI Thread.
+        /// Dequeue toàn bộ items từ ConcurrentQueue và xử lý gộp thành một render pass duy nhất.
+        /// </summary>
+        private void UiTimer_Tick(object? sender, EventArgs e)
+        {
+            if (this.IsDisposed || !this.IsHandleCreated) return;
+
+            var batch = new System.Collections.Generic.List<ScaleData>();
+            while (_dataQueue.TryDequeue(out var item))
+                batch.Add(item);
+
+            if (batch.Count == 0) return;
+
+            var latest = batch[^1];
+            _lastScaleData = latest;
+
+            // Cập nhật hiển thị từ item mới nhất trong batch
+            if (latest.Status == ScaleStatus.Overload)
             {
-                var data = scaleData.Value;
-                _lastScaleData = data;
+                lbLiveweight.Text      = "OVERLOAD";
+                panel1.BackColor       = AppColors.StatusWarningBg;
+                lbLiveweight.ForeColor = AppColors.BrandRed;
+            }
+            else if (latest.Status == ScaleStatus.Underload)
+            {
+                lbLiveweight.Text      = "UNDERLOAD";
+                panel1.BackColor       = AppColors.StatusWarningBg;
+                lbLiveweight.ForeColor = AppColors.BrandRed;
+            }
+            else if (latest.Status == ScaleStatus.Invalid)
+            {
+                lbLiveweight.Text      = "ERR / BUSY";
+                panel1.BackColor       = AppColors.StatusWarningBg;
+                lbLiveweight.ForeColor = AppColors.StatusWarning;
+            }
+            else
+            {
+                lbLiveweight.Text      = $"{latest.Weight:F4} {latest.Unit}";
+                panel1.BackColor       = latest.IsStable ? AppColors.PanelStable   : AppColors.PanelUnstable;
+                lbLiveweight.ForeColor = latest.IsStable ? AppColors.WeightStable  : AppColors.WeightUnstable;
+            }
 
-                // ── Xử lý hiển thị dựa trên trạng thái ────────────────
-                if (data.Status == ScaleStatus.Overload)
+            // Batch chart: thêm tất cả điểm trong một lượt, render một lần duy nhất
+            bool hasChartData = false;
+            foreach (var data in batch)
+            {
+                if (!data.IsError)
                 {
-                    lbLiveweight.Text      = "OVERLOAD";
-                    panel1.BackColor       = AppColors.StatusWarningBg;
-                    lbLiveweight.ForeColor = AppColors.BrandRed;
+                    UpdateChart(data, triggerRender: false);
+                    hasChartData = true;
                 }
-                else if (data.Status == ScaleStatus.Underload)
-                {
-                    lbLiveweight.Text      = "UNDERLOAD";
-                    panel1.BackColor       = AppColors.StatusWarningBg;
-                    lbLiveweight.ForeColor = AppColors.BrandRed;
-                }
-                else if (data.Status == ScaleStatus.Invalid)
-                {
-                    lbLiveweight.Text      = "ERR / BUSY";
-                    panel1.BackColor       = AppColors.StatusWarningBg;
-                    lbLiveweight.ForeColor = AppColors.StatusWarning;
-                }
-                else
-                {
-                    // Trạng thái bình thường (Stable hoặc Dynamic)
-                    lbLiveweight.Text = $"{data.Weight:F4} {data.Unit}";
-                    
-                    if (data.IsStable)
-                    {
-                        panel1.BackColor       = AppColors.PanelStable;
-                        lbLiveweight.ForeColor = AppColors.WeightStable;
-                    }
-                    else
-                    {
-                        panel1.BackColor       = AppColors.PanelUnstable;
-                        lbLiveweight.ForeColor = AppColors.WeightUnstable;
-                    }
+            }
+            if (hasChartData)
+                _plotModel.InvalidatePlot(true);
 
-                    // Live Chart update (chỉ update khi có số liệu hợp lệ)
-                    UpdateChart(data);
-                }
-
-                // Auto-Polling Logic (chỉ chạy nếu không phải trạng thái lỗi)
-                if (chkAutoPolling.Checked && !data.IsError)
-                    ProcessAutoPolling(data);
+            // Auto-Polling: xử lý tuần tự để giữ đúng state machine zero-detect
+            if (chkAutoPolling.Checked)
+            {
+                foreach (var data in batch)
+                    if (!data.IsError) ProcessAutoPolling(data);
             }
         }
 
@@ -327,7 +349,7 @@ namespace Test
             plotViewLiveChart.Model = _plotModel;
         }
 
-        private void UpdateChart(ScaleData data)
+        private void UpdateChart(ScaleData data, bool triggerRender = true)
         {
             if (data.IsError) return; // Không vẽ khi quá tải/dưới tải
 
@@ -349,7 +371,9 @@ namespace Test
                 lbStatMaxValue.Text = $"{_sessionMax:F4} {unit}";
             }
 
-            _plotModel.InvalidatePlot(true);
+            // [R-01] Chỉ gọi InvalidatePlot khi được yêu cầu — batch mode dùng false
+            if (triggerRender)
+                _plotModel.InvalidatePlot(true);
         }
 
         private void UpdateStats()
@@ -594,7 +618,9 @@ namespace Test
 
         private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
         {
-            // Đảm bảo đóng tất cả kết nối khi thoát
+            // [R-01] Dừng timer trước khi dispose form — tránh Tick chạy sau khi handle bị hủy
+            _uiTimer?.Stop();
+            _uiTimer?.Dispose();
             _connectionManager?.Dispose();
             trayIcon.Visible = false;
             trayIcon.Dispose();

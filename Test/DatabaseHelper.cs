@@ -7,9 +7,17 @@ namespace Test
     {
         private const string DatabaseFileName = "ScaleData.db";
 
+        // [R-02] Lock chia sẻ giữa DataRepository (UI Thread) và DatabaseService (Background Timer).
+        // SemaphoreSlim hỗ trợ cả Wait() đồng bộ và WaitAsync() bất đồng bộ — không gây deadlock.
+        internal static readonly SemaphoreSlim DbAccessLock = new SemaphoreSlim(1, 1);
+
         // [FIX N3] Schema version tracking — tăng khi có thay đổi schema
         private const int CurrentSchemaVersion = 3;
 
+        /// <summary>
+        /// Trả về connection string có Password= từ biến môi trường TESA_DB_KEY.
+        /// Ném InvalidOperationException nếu biến môi trường chưa được đặt.
+        /// </summary>
         public static string GetConnectionString()
         {
             return $"Data Source={DatabaseFileName}";
@@ -45,6 +53,44 @@ namespace Test
                 MigrateWeightToText(connection);  // v1 -> v2: Weight REAL -> TEXT
                 MigrateAddIsSynced(connection);    // v2 -> v3: Thêm cột IsSynced
             }
+        }
+
+        /// <summary>
+        /// [SEC-4.1] Mã hóa file SQLite plaintext hiện có sang SQLCipher AES-256.
+        /// Chỉ gọi một lần trong quá trình nâng cấp từ phiên bản không mã hóa.
+        /// Yêu cầu: file ScaleData.db phải là SQLite thuần, chưa được mã hóa.
+        /// Sau khi hoàn thành, xóa hoặc vô hiệu hóa lời gọi này.
+        /// </summary>
+        public static void EncryptExistingDatabase()
+        {
+            string key = Environment.GetEnvironmentVariable("TESA_DB_KEY")
+                ?? throw new InvalidOperationException("[SEC-4.1] TESA_DB_KEY chưa được đặt.");
+
+            // Mở file plaintext (không có password)
+            string plainConnStr = $"Data Source={DatabaseFileName}";
+            using var conn = new SqliteConnection(plainConnStr);
+            conn.Open();
+
+            // sqlcipher_export: xuất toàn bộ nội dung sang file mã hóa tạm thời
+            // sau đó hoán đổi file
+            using var attachCmd = new SqliteCommand(
+                $"ATTACH DATABASE 'encrypted.db' AS encrypted KEY '{key}';", conn);
+            attachCmd.ExecuteNonQuery();
+
+            using var exportCmd = new SqliteCommand(
+                "SELECT sqlcipher_export('encrypted');", conn);
+            exportCmd.ExecuteNonQuery();
+
+            using var detachCmd = new SqliteCommand("DETACH DATABASE encrypted;", conn);
+            detachCmd.ExecuteNonQuery();
+
+            conn.Close();
+
+            // Hoán đổi file: xóa plaintext, đổi tên encrypted.db -> ScaleData.db
+            System.IO.File.Delete(DatabaseFileName);
+            System.IO.File.Move("encrypted.db", DatabaseFileName);
+
+            System.Diagnostics.Debug.WriteLine("[SEC-4.1] EncryptExistingDatabase OK. File đã được mã hóa AES-256.");
         }
 
         /// <summary>

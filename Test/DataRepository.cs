@@ -15,6 +15,10 @@ namespace Test
         /// </summary>
         public void Insert(ScaleRecord record)
         {
+            // [R-02] Serialize concurrent SQLite access with DatabaseService background timer
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
                 connection.Open();
@@ -35,6 +39,11 @@ namespace Test
                     command.ExecuteNonQuery();
                 }
             }
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
         }
 
         /// <summary>
@@ -42,6 +51,9 @@ namespace Test
         /// </summary>
         public void InsertBatch(IEnumerable<ScaleRecord> records)
         {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
                 connection.Open();
@@ -77,10 +89,18 @@ namespace Test
                     transaction.Commit();
                 }
             }
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
         }
 
         public List<ScaleRecord> GetAll()
         {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
             var records = new List<ScaleRecord>();
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
@@ -107,9 +127,17 @@ namespace Test
                 }
             }
             return records;
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
         }
         public int GetTodayCount()
         {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
                 connection.Open();
@@ -120,10 +148,18 @@ namespace Test
                     return result == null ? 0 : (int)(long)result;
                 }
             }
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
         }
 
         public decimal GetBatchTotal(string batch)
         {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
                 connection.Open();
@@ -139,6 +175,11 @@ namespace Test
                     var result = command.ExecuteScalar();
                     return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result);
                 }
+            }
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
             }
         }
     }
