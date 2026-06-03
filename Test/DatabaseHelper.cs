@@ -12,7 +12,7 @@ namespace Test
         internal static readonly SemaphoreSlim DbAccessLock = new SemaphoreSlim(1, 1);
 
         // [FIX N3] Schema version tracking — tăng khi có thay đổi schema
-        private const int CurrentSchemaVersion = 3;
+        private const int CurrentSchemaVersion = 4;
 
         /// <summary>
         /// Trả về connection string có Password= từ biến môi trường TESA_DB_KEY.
@@ -41,6 +41,7 @@ namespace Test
                         Batch TEXT,
                         SampleName TEXT,
                         Location TEXT,
+                        Tester TEXT,
                         IsSynced INTEGER NOT NULL DEFAULT 0
                     );";
 
@@ -52,6 +53,7 @@ namespace Test
                 // Migrate DB cũ theo thứ tự
                 MigrateWeightToText(connection);  // v1 -> v2: Weight REAL -> TEXT
                 MigrateAddIsSynced(connection);    // v2 -> v3: Thêm cột IsSynced
+                MigrateAddTester(connection);      // v3 -> v4: Thêm cột Tester
             }
         }
 
@@ -189,6 +191,59 @@ namespace Test
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[DB Migration v3] Failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// v3 → v4: Thêm cột Tester nếu chưa tồn tại.
+        /// </summary>
+        private static void MigrateAddTester(SqliteConnection connection)
+        {
+            using var pragmaCmd = new SqliteCommand("PRAGMA table_info(ScaleRecords);", connection);
+            using var reader = pragmaCmd.ExecuteReader();
+
+            bool columnExists = false;
+            while (reader.Read())
+            {
+                if (reader.GetString(1).Equals("Tester", StringComparison.OrdinalIgnoreCase))
+                {
+                    columnExists = true;
+                    break;
+                }
+            }
+            reader.Close();
+
+            if (columnExists) return;
+
+            try
+            {
+                using var cmd = new SqliteCommand(
+                    "ALTER TABLE ScaleRecords ADD COLUMN Tester TEXT;",
+                    connection);
+                cmd.ExecuteNonQuery();
+                System.Diagnostics.Debug.WriteLine("[DB Migration v4] Tester column added OK.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DB Migration v4] Failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Tạo bản sao lưu (backup) của CSDL SQLite hiện tại an toàn bằng cách dùng lock.
+        /// </summary>
+        public static async System.Threading.Tasks.Task BackupDatabaseAsync(string destinationPath)
+        {
+            await DbAccessLock.WaitAsync();
+            try
+            {
+                // Force close connection if any pooled connections exist to flush WAL, though SQLite handles concurrent copies decently if wal checkpoint is triggered.
+                SqliteConnection.ClearAllPools();
+                System.IO.File.Copy(DatabaseFileName, destinationPath, overwrite: true);
+            }
+            finally
+            {
+                DbAccessLock.Release();
             }
         }
     }

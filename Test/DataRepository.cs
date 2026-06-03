@@ -23,8 +23,8 @@ namespace Test
             {
                 connection.Open();
                 string query = @"
-                    INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location)
-                    VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location)";
+                    INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester)
+                    VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location, @Tester)";
 
                 using (var command = new SqliteCommand(query, connection))
                 {
@@ -35,6 +35,7 @@ namespace Test
                     command.Parameters.AddWithValue("@Batch", string.IsNullOrEmpty(record.Batch) ? (object)DBNull.Value : record.Batch);
                     command.Parameters.AddWithValue("@SampleName", string.IsNullOrEmpty(record.SampleName) ? (object)DBNull.Value : record.SampleName);
                     command.Parameters.AddWithValue("@Location", string.IsNullOrEmpty(record.Location) ? (object)DBNull.Value : record.Location);
+                    command.Parameters.AddWithValue("@Tester", string.IsNullOrEmpty(record.Tester) ? (object)DBNull.Value : record.Tester);
                     
                     command.ExecuteNonQuery();
                 }
@@ -60,8 +61,8 @@ namespace Test
                 using (var transaction = connection.BeginTransaction())
                 {
                     string query = @"
-                        INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location)
-                        VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location)";
+                        INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester)
+                        VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location, @Tester)";
 
                     using (var command = new SqliteCommand(query, connection, transaction))
                     {
@@ -72,6 +73,7 @@ namespace Test
                         command.Parameters.Add("@Batch", SqliteType.Text);
                         command.Parameters.Add("@SampleName", SqliteType.Text);
                         command.Parameters.Add("@Location", SqliteType.Text);
+                        command.Parameters.Add("@Tester", SqliteType.Text);
 
                         foreach (var record in records)
                         {
@@ -82,6 +84,7 @@ namespace Test
                             command.Parameters["@Batch"].Value = string.IsNullOrEmpty(record.Batch) ? (object)DBNull.Value : record.Batch;
                             command.Parameters["@SampleName"].Value = string.IsNullOrEmpty(record.SampleName) ? (object)DBNull.Value : record.SampleName;
                             command.Parameters["@Location"].Value = string.IsNullOrEmpty(record.Location) ? (object)DBNull.Value : record.Location;
+                            command.Parameters["@Tester"].Value = string.IsNullOrEmpty(record.Tester) ? (object)DBNull.Value : record.Tester;
 
                             command.ExecuteNonQuery();
                         }
@@ -105,7 +108,7 @@ namespace Test
             using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
             {
                 connection.Open();
-                string query = "SELECT Id, Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location FROM ScaleRecords ORDER BY Timestamp DESC";
+                string query = "SELECT Id, Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester FROM ScaleRecords ORDER BY Timestamp DESC";
 
                 using (var command = new SqliteCommand(query, connection))
                 using (var reader = command.ExecuteReader())
@@ -121,7 +124,8 @@ namespace Test
                             NatCode = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                             Batch = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
                             SampleName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
-                            Location = reader.IsDBNull(7) ? string.Empty : reader.GetString(7)
+                            Location = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                            Tester = reader.IsDBNull(8) ? string.Empty : reader.GetString(8)
                         });
                     }
                 }
@@ -175,7 +179,38 @@ namespace Test
                     var result = command.ExecuteScalar();
                     return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result);
                 }
+                }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataRepository.GetBatchTotal] Failed: {ex.Message}");
+                return 0m;
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
+        }
+
+        public int GetUnsyncedCount()
+        {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
+                using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
+                {
+                    connection.Open();
+                    string query = "SELECT COUNT(*) FROM ScaleRecords WHERE IsSynced = 0";
+                    using (var command = new SqliteCommand(query, connection))
+                    {
+                        var result = command.ExecuteScalar();
+                        return result == null ? 0 : (int)(long)result;
+                    }
+                }
+            }
+            catch
+            {
+                return 0;
             }
             finally
             {

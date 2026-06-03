@@ -128,9 +128,9 @@ namespace Test
                 conn.Open();
                 const string sql = @"
                     INSERT INTO ScaleRecords
-                        (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, IsSynced)
+                        (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester, IsSynced)
                     VALUES
-                        (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location, @IsSynced)";
+                        (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location, @Tester, @IsSynced)";
 
                 using var cmd = new SqliteCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@Timestamp", record.Timestamp);
@@ -140,6 +140,7 @@ namespace Test
                 cmd.Parameters.AddWithValue("@Batch",      string.IsNullOrEmpty(record.Batch)       ? (object)DBNull.Value : record.Batch);
                 cmd.Parameters.AddWithValue("@SampleName", string.IsNullOrEmpty(record.SampleName)  ? (object)DBNull.Value : record.SampleName);
                 cmd.Parameters.AddWithValue("@Location",   string.IsNullOrEmpty(record.Location)    ? (object)DBNull.Value : record.Location);
+                cmd.Parameters.AddWithValue("@Tester",     string.IsNullOrEmpty(record.Tester)      ? (object)DBNull.Value : record.Tester);
                 cmd.Parameters.AddWithValue("@IsSynced",   isSynced ? 1 : 0);
                 cmd.ExecuteNonQuery();
             }
@@ -156,7 +157,7 @@ namespace Test
             using var conn = new SqliteConnection(DatabaseHelper.GetConnectionString());
             conn.Open();
             string sql = $@"
-                SELECT Id, Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location
+                SELECT Id, Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester
                 FROM ScaleRecords
                 WHERE IsSynced = 0
                 ORDER BY Timestamp ASC
@@ -177,6 +178,7 @@ namespace Test
                     Batch      = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
                     SampleName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
                     Location   = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                    Tester     = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
                     IsSynced   = false
                 };
                 result.Add((localId, apiModel));
@@ -218,6 +220,7 @@ namespace Test
             Batch      = r.Batch,
             SampleName = r.SampleName,
             Location   = r.Location,
+            Tester     = r.Tester,
             IsSynced   = false
         };
 

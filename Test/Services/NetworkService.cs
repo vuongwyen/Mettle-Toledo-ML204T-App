@@ -25,25 +25,27 @@ namespace Test.Services
 
         public static NetworkService Instance => _instance.Value;
 
+        private const string LOCAL_VM_API_URL = "http://172.29.49.36:5000";
+
         private readonly HttpClient _httpClient;
         private readonly string _baseUrl;
         private readonly JsonSerializerOptions _jsonOptions;
 
         private NetworkService()
         {
-            // [SEC-4.2] Không có fallback. Biến môi trường bắt buộc phải có giá trị hợp lệ.
-            string? rawUrl = Environment.GetEnvironmentVariable("SCALE_API_URL");
+            // Đọc cấu hình từ AppConfig thay vì EnvironmentVariable
+            string? rawUrl = AppConfig.Load().ApiServerUrl;
 
             if (string.IsNullOrWhiteSpace(rawUrl))
+            {
+                rawUrl = LOCAL_VM_API_URL;
+                System.Diagnostics.Debug.WriteLine($"[NetworkService] AppConfig URL trống. Dùng fallback: {rawUrl}");
+            }
+            else if (!rawUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !rawUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
                 throw new InvalidOperationException(
-                    "[SEC-4.2] Biến môi trường 'SCALE_API_URL' chưa được đặt. " +
-                    "Ứng dụng yêu cầu URL HTTPS hợp lệ để giao tiếp với Central Server.");
-
-            if (!rawUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException(
-                    $"[SEC-4.2] 'SCALE_API_URL' phải bắt đầu bằng 'https://'. " +
-                    $"Giá trị hiện tại: '{rawUrl}'. " +
-                    $"Kết nối HTTP không mã hóa bị từ chối theo chính sách Zero-Trust.");
+                    $"[SEC-4.2] 'ApiServerUrl' phải hợp lệ. Giá trị hiện tại: '{rawUrl}'.");
+            }
 
             _baseUrl = rawUrl.TrimEnd('/');
 

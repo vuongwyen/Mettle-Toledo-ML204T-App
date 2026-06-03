@@ -32,6 +32,8 @@ namespace Test
             groupBox2 = new GroupBox();
             tboLocation = new TextBox();
             label10 = new Label();
+            tboTester = new TextBox();
+            lblTester = new Label();
             tboSamplename = new TextBox();
             label9 = new Label();
             tboBatch = new TextBox();
@@ -195,6 +197,8 @@ namespace Test
             groupBox2.BackColor = Color.White;
             groupBox2.Controls.Add(tboLocation);
             groupBox2.Controls.Add(label10);
+            groupBox2.Controls.Add(tboTester);
+            groupBox2.Controls.Add(lblTester);
             groupBox2.Controls.Add(tboSamplename);
             groupBox2.Controls.Add(label9);
             groupBox2.Controls.Add(tboBatch);
@@ -231,6 +235,29 @@ namespace Test
             label10.Size = new Size(130, 25);
             label10.TabIndex = 9;
             label10.Text = "Vị trí (Location)";
+            // 
+            // tboTester
+            // 
+            tboTester.BackColor = Color.White;
+            tboTester.BorderStyle = BorderStyle.FixedSingle;
+            tboTester.Font = new Font("Segoe UI", 10.8F);
+            tboTester.ForeColor = Color.FromArgb(30, 41, 59);
+            tboTester.Location = new Point(210, 268);
+            tboTester.Name = "tboTester";
+            tboTester.Size = new Size(217, 31);
+            tboTester.TabIndex = 11;
+            // 
+            // lblTester
+            // 
+            lblTester.AutoSize = true;
+            lblTester.BackColor = Color.Transparent;
+            lblTester.Font = new Font("Segoe UI", 10.8F);
+            lblTester.ForeColor = Color.FromArgb(100, 116, 139);
+            lblTester.Location = new Point(203, 240);
+            lblTester.Name = "lblTester";
+            lblTester.Size = new Size(160, 25);
+            lblTester.TabIndex = 12;
+            lblTester.Text = "Người test (Tester)";
             // 
             // tboSamplename
             // 
@@ -729,10 +756,10 @@ namespace Test
             Controls.Add(tcDashboard);
             Font = new Font("Segoe UI", 9F);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MaximumSize = new Size(1421, 887);
             MinimumSize = new Size(1421, 887);
             Name = "Form1";
             Text = "tesa Scale Data Collection - ML204T";
+            WindowState = FormWindowState.Maximized;
             tcDashboard.ResumeLayout(false);
             tpDashboard.ResumeLayout(false);
             groupBox3.ResumeLayout(false);
@@ -774,6 +801,8 @@ namespace Test
         private Label       label11;
         private TextBox     tboLocation;
         private Label       label10;
+        private TextBox     tboTester;
+        private Label       lblTester;
         private TextBox     tboSamplename;
         private Label       label9;
         private TextBox     tboBatch;

@@ -12,5 +12,6 @@ namespace Test
         public string Batch { get; set; } = string.Empty;
         public string SampleName { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
+        public string Tester { get; set; } = string.Empty;
     }
 }

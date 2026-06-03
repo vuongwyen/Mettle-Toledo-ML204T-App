@@ -23,6 +23,11 @@ namespace Test
         private LineSeries  _weightSeries = null!;
         private decimal?    _sessionMin;
         private decimal?    _sessionMax;
+
+        // Auto Scaling
+        private Size _originalFormSize;
+        private System.Collections.Generic.Dictionary<Control, Rectangle> _originalControlRects = new System.Collections.Generic.Dictionary<Control, Rectangle>();
+        private System.Collections.Generic.Dictionary<Control, float> _originalFonts = new System.Collections.Generic.Dictionary<Control, float>();
         private const int   MaxChartPoints = 300;
 
         // [R-01] Producer-Consumer: Background thread enqueues, WinForms Timer dequeues in batch.
@@ -30,6 +35,7 @@ namespace Test
         private readonly System.Collections.Concurrent.ConcurrentQueue<ScaleData> _dataQueue
             = new System.Collections.Concurrent.ConcurrentQueue<ScaleData>();
         private System.Windows.Forms.Timer _uiTimer = null!;
+        private System.Windows.Forms.Timer _autoBackupTimer = null!;
 
         private enum AutoPollingState
         {
@@ -63,9 +69,23 @@ namespace Test
             tboBatch.KeyDown      += Tbo_KeyDown;
             tboSamplename.KeyDown += Tbo_KeyDown;
             tboLocation.KeyDown   += Tbo_KeyDown;
+            tboTester.KeyDown     += Tbo_KeyDown;
 
             trayIcon.Icon = this.Icon;
             trayIcon.MouseDoubleClick += (s, e) => RestoreFromTray();
+
+            // Tray Menu context is now native, removing manual override
+            trayIcon.ContextMenuStrip = trayContextMenu;
+            trayMenuOpen.Click += (s, e) => RestoreFromTray();
+            trayMenuExit.Click += (s, e) => this.Close();
+
+            // Initialize new Settings Tab
+            InitializeSettingsTab();
+
+            // Setup Auto Backup Timer (Every 4 hours)
+            _autoBackupTimer = new System.Windows.Forms.Timer { Interval = 4 * 60 * 60 * 1000 };
+            _autoBackupTimer.Tick += (s, e) => _ = PerformAutoBackupAsync();
+            _autoBackupTimer.Start();
 
             this.FormClosing += Form1_FormClosing;
 
@@ -81,6 +101,9 @@ namespace Test
             // Custom tab rendering
             tcDashboard.DrawItem += TcDashboard_DrawItem;
             tcDashboard.SelectedIndexChanged += (s, e) => tcDashboard.Invalidate();
+
+            // Hook for scaling
+            this.Load += Form1_Load;
         }
 
         private async void btnConnectIpadd_Click(object? sender, EventArgs e)
@@ -431,11 +454,114 @@ namespace Test
                 }
                 else if (sender == tboLocation)
                 {
-                    // Nếu ở ô cuối cùng, có thể focus ngược lại ô đầu hoặc chốt số?
-                    // Ở đây tôi chọn quay lại ô đầu để chuẩn bị cho lô tiếp theo
+                    tboTester.Focus();
+                }
+                else if (sender == tboTester)
+                {
                     tboNat.Focus();
                 }
             }
+        }
+
+        private void InitializeSettingsTab()
+        {
+            var tpSettings = new TabPage("⚙️ Cài đặt");
+            tpSettings.BackColor = Color.FromArgb(244, 246, 249);
+            tpSettings.Padding = new Padding(20);
+
+            // GroupBox Backup
+            var gbBackup = new GroupBox
+            {
+                Text = "An toàn Dữ liệu (Backup)",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(227, 6, 19),
+                Location = new Point(20, 20),
+                Size = new Size(600, 150),
+                BackColor = Color.White
+            };
+
+            var btnManualBackup = new Button
+            {
+                Text = "💾 Sao lưu dữ liệu thủ công (Manual Backup)",
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                BackColor = Color.FromArgb(34, 197, 94),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(30, 50),
+                Size = new Size(540, 50)
+            };
+            btnManualBackup.FlatAppearance.BorderSize = 0;
+            btnManualBackup.Click += (s, e) => PerformManualBackup();
+
+            var lbBackupInfo = new Label
+            {
+                Text = "Hệ thống tự động sao lưu mỗi 4 tiếng. Bạn có thể sao lưu thủ công tại đây.",
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Location = new Point(30, 110),
+                AutoSize = true
+            };
+
+            gbBackup.Controls.Add(btnManualBackup);
+            gbBackup.Controls.Add(lbBackupInfo);
+
+            // GroupBox API
+            var gbApi = new GroupBox
+            {
+                Text = "Cấu hình API Server",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(227, 6, 19),
+                Location = new Point(20, 190),
+                Size = new Size(600, 180),
+                BackColor = Color.White
+            };
+
+            var lbApiUrl = new Label
+            {
+                Text = "Địa chỉ Máy chủ Trung tâm (API URL):",
+                Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Location = new Point(30, 50),
+                AutoSize = true
+            };
+
+            var tboApiUrl = new TextBox
+            {
+                Text = AppConfig.Load().ApiServerUrl,
+                Font = new Font("Segoe UI", 11F),
+                Location = new Point(30, 80),
+                Size = new Size(540, 32),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var btnSaveApi = new Button
+            {
+                Text = "Lưu cấu hình",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(0, 159, 227),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(30, 125),
+                Size = new Size(150, 40)
+            };
+            btnSaveApi.FlatAppearance.BorderSize = 0;
+            btnSaveApi.Click += (s, e) => 
+            {
+                var config = AppConfig.Load();
+                config.ApiServerUrl = tboApiUrl.Text.Trim();
+                config.Save();
+                MessageBox.Show("Đã lưu cấu hình API thành công!\nVui lòng khởi động lại ứng dụng để áp dụng địa chỉ mới.", 
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
+            gbApi.Controls.Add(lbApiUrl);
+            gbApi.Controls.Add(tboApiUrl);
+            gbApi.Controls.Add(btnSaveApi);
+
+            tpSettings.Controls.Add(gbBackup);
+            tpSettings.Controls.Add(gbApi);
+
+            tcDashboard.TabPages.Add(tpSettings);
         }
 
         private void SaveCurrentWeight(bool isAuto)
@@ -468,7 +594,8 @@ namespace Test
                     NatCode = tboNat.Text.Trim(),
                     Batch = tboBatch.Text.Trim(),
                     SampleName = tboSamplename.Text.Trim(),
-                    Location = tboLocation.Text.Trim()
+                    Location = tboLocation.Text.Trim(),
+                    Tester = tboTester.Text.Trim()
                 };
 
                 _repository.Insert(record);
@@ -606,8 +733,6 @@ namespace Test
             }
         }
 
-        // [FIX N2] Đã xóa Form1_Resize handler rỗng
-
         private void RestoreFromTray()
         {
             this.Show();
@@ -616,14 +741,153 @@ namespace Test
             trayIcon.Visible = false;
         }
 
-        private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
+        private async System.Threading.Tasks.Task PerformAutoBackupAsync()
         {
-            // [R-01] Dừng timer trước khi dispose form — tránh Tick chạy sau khi handle bị hủy
-            _uiTimer?.Stop();
-            _uiTimer?.Dispose();
-            _connectionManager?.Dispose();
-            trayIcon.Visible = false;
-            trayIcon.Dispose();
+            try
+            {
+                string backupDir = System.IO.Path.Combine(Application.StartupPath, "Backups");
+                if (!System.IO.Directory.Exists(backupDir))
+                    System.IO.Directory.CreateDirectory(backupDir);
+
+                string fileName = $"ScaleData_AutoBackup_{DateTime.Now:yyyyMMdd_HHmmss}.db";
+                string destPath = System.IO.Path.Combine(backupDir, fileName);
+
+                await DatabaseHelper.BackupDatabaseAsync(destPath);
+
+                // Clean up old backups (> 7 days)
+                var oldFiles = System.IO.Directory.GetFiles(backupDir, "ScaleData_AutoBackup_*.db")
+                    .Select(f => new System.IO.FileInfo(f))
+                    .Where(f => f.CreationTime < DateTime.Now.AddDays(-7));
+                foreach (var file in oldFiles)
+                {
+                    try { file.Delete(); } catch { }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AutoBackup] Thành công: {fileName}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AutoBackup] Lỗi: {ex.Message}");
+            }
         }
+
+        private async void PerformManualBackup()
+        {
+            using (var dlg = new SaveFileDialog())
+            {
+                dlg.Title = "Chọn nơi lưu bản sao lưu (Backup)";
+                dlg.Filter = "SQLite Database (*.db)|*.db";
+                dlg.FileName = $"ScaleData_Backup_{DateTime.Now:yyyyMMdd_HHmmss}.db";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        await DatabaseHelper.BackupDatabaseAsync(dlg.FileName);
+                        MessageBox.Show("Đã sao lưu cơ sở dữ liệu thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Lỗi khi sao lưu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private async void Form1_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                int unsyncedCount = _repository.GetUnsyncedCount();
+                string msg = unsyncedCount > 0
+                    ? $"CẢNH BÁO: Còn {unsyncedCount} dòng dữ liệu chưa được đồng bộ lên máy chủ.\nNếu thoát, dữ liệu sẽ lưu trữ nội bộ và tự động gửi vào lần mở ứng dụng tiếp theo.\n\nBạn có chắc chắn muốn thoát?"
+                    : "Bạn có chắc chắn muốn thoát ứng dụng không?\nHệ thống sẽ tự động tạo một bản sao lưu dữ liệu trước khi đóng.";
+                
+                var confirmResult = MessageBox.Show(msg, "Xác nhận thoát", MessageBoxButtons.YesNo, unsyncedCount > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Question);
+                if (confirmResult == DialogResult.No)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+
+                e.Cancel = true;
+                this.FormClosing -= Form1_FormClosing; // Prevent recursion
+
+                try
+                {
+                    await PerformAutoBackupAsync();
+                }
+                finally
+                {
+                    _autoBackupTimer?.Stop();
+                    _autoBackupTimer?.Dispose();
+                    _uiTimer?.Stop();
+                    _uiTimer?.Dispose();
+                    _connectionManager?.Dispose();
+                    trayIcon.Visible = false;
+                    trayIcon.Dispose();
+                    
+                    this.Close();
+                }
+            }
+        }
+
+        #region Auto Scaling Logic
+
+        private void Form1_Load(object? sender, EventArgs e)
+        {
+            _originalFormSize = this.ClientSize;
+            SaveOriginalBounds(this);
+            this.Resize += Form1_Resize;
+
+            // Đảm bảo DataGridView phóng to columns
+            dgvWeightsheet.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
+        private void SaveOriginalBounds(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                _originalControlRects[c] = c.Bounds;
+                _originalFonts[c] = c.Font.Size;
+                if (c.HasChildren) SaveOriginalBounds(c);
+            }
+        }
+
+        private void Form1_Resize(object? sender, EventArgs e)
+        {
+            if (_originalFormSize.Width == 0 || this.WindowState == FormWindowState.Minimized) return;
+            
+            float ratioX = (float)this.ClientSize.Width / _originalFormSize.Width;
+            float ratioY = (float)this.ClientSize.Height / _originalFormSize.Height;
+            float ratioFont = Math.Min(ratioX, ratioY);
+
+            this.SuspendLayout();
+            ScaleControls(this, ratioX, ratioY, ratioFont);
+            this.ResumeLayout();
+        }
+
+        private void ScaleControls(Control parent, float ratioX, float ratioY, float ratioFont)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (_originalControlRects.TryGetValue(c, out Rectangle rect))
+                {
+                    c.Bounds = new Rectangle(
+                        (int)(rect.X * ratioX),
+                        (int)(rect.Y * ratioY),
+                        (int)(rect.Width * ratioX),
+                        (int)(rect.Height * ratioY)
+                    );
+                    if (_originalFonts.TryGetValue(c, out float fontSize))
+                    {
+                        c.Font = new Font(c.Font.FontFamily, fontSize * ratioFont, c.Font.Style);
+                    }
+                }
+                if (c.HasChildren) ScaleControls(c, ratioX, ratioY, ratioFont);
+            }
+        }
+
+        #endregion
     }
 }

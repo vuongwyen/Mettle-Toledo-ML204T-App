@@ -29,6 +29,9 @@ namespace Test.Models
         [JsonPropertyName("location")]
         public string Location { get; set; }
 
+        [JsonPropertyName("tester")]
+        public string Tester { get; set; }
+
         [JsonPropertyName("isSynced")]
         public bool IsSynced { get; set; }
     }
