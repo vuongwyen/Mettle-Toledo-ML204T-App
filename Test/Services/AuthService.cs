@@ -29,9 +29,15 @@ namespace Test.Services
 
         private AuthService()
         {
-            string apiUrl = Environment.GetEnvironmentVariable("SCALE_API_URL")
-                ?? throw new InvalidOperationException(
-                    "[SEC-4.3] Biến môi trường 'SCALE_API_URL' chưa được đặt.");
+            // Đọc từ AppConfig (appsettings.json) — cùng nguồn với NetworkService.
+            // Trước đây dùng Environment.GetEnvironmentVariable("SCALE_API_URL") nhưng
+            // biến đó không bao giờ được set trong WinForms → AuthService không khởi tạo
+            // được → 100% request thiếu JWT → server luôn trả 401.
+            string apiUrl = AppConfig.Load().ApiServerUrl;
+
+            if (string.IsNullOrWhiteSpace(apiUrl))
+                throw new InvalidOperationException(
+                    "[AuthService] ApiServerUrl trong appsettings.json bị trống. Vui lòng cấu hình trong tab Cài đặt.");
 
             _authUrl = apiUrl.TrimEnd('/') + "/api/auth/login";
         }
@@ -144,31 +150,27 @@ namespace Test.Services
     }
 
     /// <summary>
-    /// [SEC-4.3] DelegatingHandler tự động đính kèm JWT Bearer Token vào mỗi request.
-    /// Lấy token từ AuthService.Instance tại thời điểm gửi request (không cache).
-    /// Nếu chưa có token, request vẫn được gửi đi (server sẽ từ chối với HTTP 401).
+    /// DelegatingHandler tự động đính kèm X-Api-Key vào mỗi request.
+    /// Lấy key từ AppConfig tại thời điểm gửi request.
     /// </summary>
-    internal sealed class BearerTokenHandler : DelegatingHandler
+    internal sealed class ApiKeyHandler : DelegatingHandler
     {
-        public BearerTokenHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
+        public ApiKeyHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            string? token = AuthService.Instance.GetToken();
+            string apiKey = AppConfig.Load().ApiKey;
 
-            if (!string.IsNullOrEmpty(token))
+            if (!string.IsNullOrWhiteSpace(apiKey))
             {
-                // Ghi đè header Authorization trên mỗi request — không dùng DefaultRequestHeaders
-                // để tránh race condition khi token được refresh giữa chừng.
-                request.Headers.Authorization =
-                    new AuthenticationHeaderValue("Bearer", token);
+                request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
             }
             else
             {
                 System.Diagnostics.Debug.WriteLine(
-                    "[BearerTokenHandler] Cảnh báo: Token chưa có. Request gửi không có Authorization header.");
+                    "[ApiKeyHandler] Cảnh báo: ApiKey chưa được cấu hình. Request gửi đi không có X-Api-Key.");
             }
 
             return base.SendAsync(request, cancellationToken);

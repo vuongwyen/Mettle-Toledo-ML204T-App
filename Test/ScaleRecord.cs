@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Test
 {
@@ -8,10 +9,16 @@ namespace Test
         public DateTime Timestamp { get; set; }
         public decimal Weight { get; set; }
         public string Unit { get; set; } = string.Empty;
-        public string NatCode { get; set; } = string.Empty;
-        public string Batch { get; set; } = string.Empty;
-        public string SampleName { get; set; } = string.Empty;
-        public string Location { get; set; } = string.Empty;
-        public string Tester { get; set; } = string.Empty;
+        public string? NatCode { get; set; }
+        public string? Batch { get; set; }
+        public string? SampleName { get; set; }
+        public string? Location { get; set; }
+        public string? Tester { get; set; }
+        
+        [System.ComponentModel.Browsable(false)]
+        public bool IsSynced { get; set; }
+        
+        [NotMapped]
+        public bool IsSelected { get; set; }
     }
 }

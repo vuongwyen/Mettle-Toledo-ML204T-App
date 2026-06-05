@@ -11,6 +11,7 @@ namespace Test
     {
         private ConnectionManager _connectionManager;
         private DataRepository _repository;
+        private DatabaseService _dbService;
         private CsvExportService _csvExportService;
         private ExcelExportService _excelExportService;
         private Test.Services.CsvImportService _csvImportService;
@@ -19,16 +20,16 @@ namespace Test
         private System.Collections.Generic.List<ScaleRecord> _allRecords = new System.Collections.Generic.List<ScaleRecord>();
 
         // Analytics
-        private PlotModel   _plotModel   = null!;
-        private LineSeries  _weightSeries = null!;
-        private decimal?    _sessionMin;
-        private decimal?    _sessionMax;
+        private PlotModel _plotModel = null!;
+        private LineSeries _weightSeries = null!;
+        private decimal? _sessionMin;
+        private decimal? _sessionMax;
 
         // Auto Scaling
         private Size _originalFormSize;
         private System.Collections.Generic.Dictionary<Control, Rectangle> _originalControlRects = new System.Collections.Generic.Dictionary<Control, Rectangle>();
         private System.Collections.Generic.Dictionary<Control, float> _originalFonts = new System.Collections.Generic.Dictionary<Control, float>();
-        private const int   MaxChartPoints = 300;
+        private const int MaxChartPoints = 300;
 
         // [R-01] Producer-Consumer: Background thread enqueues, WinForms Timer dequeues in batch.
         // ConcurrentQueue<T> là lock-free — an toàn cho write từ background và read từ UI thread.
@@ -36,6 +37,36 @@ namespace Test
             = new System.Collections.Concurrent.ConcurrentQueue<ScaleData>();
         private System.Windows.Forms.Timer _uiTimer = null!;
         private System.Windows.Forms.Timer _autoBackupTimer = null!;
+
+        // Roles & Auth
+        private bool _isAdmin = false;
+        private Button _btnLogin = null!;
+        private TabPage? _tpSettings;
+
+        // Server status indicator
+        private Label _lblServerStatus = null!;
+        private System.Windows.Forms.Timer _serverPingTimer = null!;
+
+        // In-memory error log
+        private readonly System.Collections.Generic.List<string> _errorLog
+            = new System.Collections.Generic.List<string>();
+        private TextBox? _txtErrorLog;
+
+        private void LogError(string context, Exception ex)
+            => LogError($"[{context}] {ex.GetType().Name}: {ex.Message}");
+
+        private void LogError(string message)
+        {
+            string entry = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            _errorLog.Add(entry);
+            if (_txtErrorLog != null && !_txtErrorLog.IsDisposed)
+            {
+                if (_txtErrorLog.InvokeRequired)
+                    _txtErrorLog.Invoke(() => { _txtErrorLog.AppendText(entry + Environment.NewLine); });
+                else
+                    _txtErrorLog.AppendText(entry + Environment.NewLine);
+            }
+        }
 
         private enum AutoPollingState
         {
@@ -53,23 +84,25 @@ namespace Test
             _connectionManager.OnStateChanged += ConnectionManager_OnStateChanged;
             _connectionManager.OnDataReceived += ConnectionManager_OnDataReceived;
 
-            _repository       = new DataRepository();
-            _csvExportService  = new CsvExportService();
+            _repository = new DataRepository();
+            var config = AppConfig.Load();
+            _dbService = new DatabaseService(string.IsNullOrWhiteSpace(config.DeviceId) ? System.Environment.MachineName : config.DeviceId);
+            _csvExportService = new CsvExportService();
             _excelExportService = new ExcelExportService();
             _csvImportService = new Test.Services.CsvImportService();
             _excelImportService = new Test.Services.ExcelImportService();
 
             btnConnectIpadd.Click += btnConnectIpadd_Click;
-            btnPolling.Click      += btnPolling_Click;
-            btnExportdata.Click   += btnExportdata_Click;
-            btnImportData.Click   += btnImportData_Click;
+            btnPolling.Click += btnPolling_Click;
+            btnExportdata.Click += btnExportdata_Click;
+            btnImportData.Click += btnImportData_Click;
             tboSearch.TextChanged += tboSearch_TextChanged;
 
-            tboNat.KeyDown        += Tbo_KeyDown;
-            tboBatch.KeyDown      += Tbo_KeyDown;
+            tboNat.KeyDown += Tbo_KeyDown;
+            tboBatch.KeyDown += Tbo_KeyDown;
             tboSamplename.KeyDown += Tbo_KeyDown;
-            tboLocation.KeyDown   += Tbo_KeyDown;
-            tboTester.KeyDown     += Tbo_KeyDown;
+            tboLocation.KeyDown += Tbo_KeyDown;
+            tboTester.KeyDown += Tbo_KeyDown;
 
             trayIcon.Icon = this.Icon;
             trayIcon.MouseDoubleClick += (s, e) => RestoreFromTray();
@@ -82,10 +115,15 @@ namespace Test
             // Initialize new Settings Tab
             InitializeSettingsTab();
 
-            // Setup Auto Backup Timer (Every 4 hours)
-            _autoBackupTimer = new System.Windows.Forms.Timer { Interval = 4 * 60 * 60 * 1000 };
+            // Setup Auto Backup Timer
+            int intervalHours = AppConfig.Load().AutoBackupIntervalHours;
+            if (intervalHours <= 0) intervalHours = 4;
+            _autoBackupTimer = new System.Windows.Forms.Timer { Interval = intervalHours * 60 * 60 * 1000 };
             _autoBackupTimer.Tick += (s, e) => _ = PerformAutoBackupAsync();
             _autoBackupTimer.Start();
+
+            // Wire up background sync errors to the UI error log
+            Test.Services.NetworkService.Instance.OnError += msg => LogError(msg);
 
             this.FormClosing += Form1_FormClosing;
 
@@ -146,22 +184,22 @@ namespace Test
 
             if (isConnected)
             {
-                lbStatusconnection.Text      = "⬤  CONNECTED";
+                lbStatusconnection.Text = "⬤  CONNECTED";
                 lbStatusconnection.BackColor = AppColors.StatusConnectedBg;
                 lbStatusconnection.ForeColor = AppColors.StatusConnected;
-                btnConnectIpadd.Text      = "⏹  Ngắt kết nối";
+                btnConnectIpadd.Text = "⏹  Ngắt kết nối";
                 btnConnectIpadd.BackColor = AppColors.BrandRed;
                 btnConnectIpadd.FlatAppearance.MouseOverBackColor = AppColors.AccentRedHover;
-                btnConnectIpadd.Enabled   = true;
+                btnConnectIpadd.Enabled = true;
 
                 // Cập nhật thông tin nhận diện cân
                 var info = _connectionManager.ConnectedScale;
                 if (info != null)
                 {
                     lbScaleModel.Text = $"Model: {info.Model}";
-                    lbScaleSN.Text    = $"S/N: {info.SerialNumber}";
+                    lbScaleSN.Text = $"S/N: {info.SerialNumber}";
                     lbScaleModel.Visible = true;
-                    lbScaleSN.Visible    = true;
+                    lbScaleSN.Visible = true;
                 }
             }
             else if (isReconnecting)
@@ -170,16 +208,16 @@ namespace Test
                 string reason = _connectionManager.LastError ?? "Mất kết nối";
                 bool isWrongDevice = reason.Contains("MT-SICS");
 
-                lbStatusconnection.Text      = isWrongDevice
+                lbStatusconnection.Text = isWrongDevice
                     ? "⚠  SAI THIẼT BỊ"
                     : "⬤  RECONNECTING...";
                 lbStatusconnection.BackColor = AppColors.StatusWarningBg;
                 lbStatusconnection.ForeColor = AppColors.StatusWarning;
-                btnConnectIpadd.Text      = "❌  Hủy Reconnect";
+                btnConnectIpadd.Text = "❌  Hủy Reconnect";
                 btnConnectIpadd.BackColor = AppColors.BrandRed;
-                btnConnectIpadd.Enabled   = true;
-                panel1.BackColor          = AppColors.PanelIdle;
-                lbLiveweight.ForeColor    = AppColors.StatusWarning;
+                btnConnectIpadd.Enabled = true;
+                panel1.BackColor = AppColors.PanelIdle;
+                lbLiveweight.ForeColor = AppColors.StatusWarning;
                 System.Media.SystemSounds.Exclamation.Play();
 
                 // Hiển thị balloon tip với lý do cụ thể
@@ -192,18 +230,18 @@ namespace Test
             }
             else
             {
-                lbStatusconnection.Text      = "⬤  DISCONNECTED";
+                lbStatusconnection.Text = "⬤  DISCONNECTED";
                 lbStatusconnection.BackColor = AppColors.StatusIdle;
                 lbStatusconnection.ForeColor = AppColors.StatusIdleText;
-                btnConnectIpadd.Text      = "🔌  Kết nối (Connect)";
+                btnConnectIpadd.Text = "🔌  Kết nối (Connect)";
                 btnConnectIpadd.BackColor = AppColors.BrandBlue;
                 btnConnectIpadd.FlatAppearance.MouseOverBackColor = AppColors.BrandBlueDark;
-                btnConnectIpadd.Enabled   = true;
-                panel1.BackColor          = AppColors.PanelIdle;
-                lbLiveweight.ForeColor    = AppColors.TextMuted;
+                btnConnectIpadd.Enabled = true;
+                panel1.BackColor = AppColors.PanelIdle;
+                lbLiveweight.ForeColor = AppColors.TextMuted;
 
                 lbScaleModel.Text = "Model: -";
-                lbScaleSN.Text    = "S/N: -";
+                lbScaleSN.Text = "S/N: -";
             }
         }
 
@@ -236,27 +274,27 @@ namespace Test
             // Cập nhật hiển thị từ item mới nhất trong batch
             if (latest.Status == ScaleStatus.Overload)
             {
-                lbLiveweight.Text      = "OVERLOAD";
-                panel1.BackColor       = AppColors.StatusWarningBg;
+                lbLiveweight.Text = "OVERLOAD";
+                panel1.BackColor = AppColors.StatusWarningBg;
                 lbLiveweight.ForeColor = AppColors.BrandRed;
             }
             else if (latest.Status == ScaleStatus.Underload)
             {
-                lbLiveweight.Text      = "UNDERLOAD";
-                panel1.BackColor       = AppColors.StatusWarningBg;
+                lbLiveweight.Text = "UNDERLOAD";
+                panel1.BackColor = AppColors.StatusWarningBg;
                 lbLiveweight.ForeColor = AppColors.BrandRed;
             }
             else if (latest.Status == ScaleStatus.Invalid)
             {
-                lbLiveweight.Text      = "ERR / BUSY";
-                panel1.BackColor       = AppColors.StatusWarningBg;
+                lbLiveweight.Text = "ERR / BUSY";
+                panel1.BackColor = AppColors.StatusWarningBg;
                 lbLiveweight.ForeColor = AppColors.StatusWarning;
             }
             else
             {
-                lbLiveweight.Text      = $"{latest.Weight:F4} {latest.Unit}";
-                panel1.BackColor       = latest.IsStable ? AppColors.PanelStable   : AppColors.PanelUnstable;
-                lbLiveweight.ForeColor = latest.IsStable ? AppColors.WeightStable  : AppColors.WeightUnstable;
+                lbLiveweight.Text = $"{latest.Weight:F4} {latest.Unit}";
+                panel1.BackColor = latest.IsStable ? AppColors.PanelStable : AppColors.PanelUnstable;
+                lbLiveweight.ForeColor = latest.IsStable ? AppColors.WeightStable : AppColors.WeightUnstable;
             }
 
             // Batch chart: thêm tất cả điểm trong một lượt, render một lần duy nhất
@@ -310,15 +348,15 @@ namespace Test
 
             // ── Tab text ──────────────────────────────────────────────
             Color textColor = isSelected ? AppColors.BrandRed : AppColors.TextSecondary;
-            float fontSize  = isSelected ? 10.5F : 10F;
-            var fontStyle   = isSelected ? FontStyle.Bold : FontStyle.Regular;
+            float fontSize = isSelected ? 10.5F : 10F;
+            var fontStyle = isSelected ? FontStyle.Bold : FontStyle.Regular;
 
-            using var font      = new Font("Segoe UI", fontSize, fontStyle);
+            using var font = new Font("Segoe UI", fontSize, fontStyle);
             using var textBrush = new SolidBrush(textColor);
             // [FIX B7] using để tránh GDI+ resource leak
             using var sf = new StringFormat
             {
-                Alignment     = StringAlignment.Center,
+                Alignment = StringAlignment.Center,
                 LineAlignment = StringAlignment.Center
             };
             // Offset text up slightly to avoid overlapping accent bar
@@ -331,41 +369,41 @@ namespace Test
         {
             _plotModel = new PlotModel
             {
-                Background           = OxyColor.FromRgb(255, 255, 255),
-                PlotAreaBackground   = OxyColor.FromRgb(248, 250, 252),
-                TextColor            = OxyColor.FromRgb(30, 41, 59),
-                PlotAreaBorderColor  = OxyColor.FromRgb(226, 232, 240),
-                TitleFontSize        = 14
+                Background = OxyColor.FromRgb(255, 255, 255),
+                PlotAreaBackground = OxyColor.FromRgb(248, 250, 252),
+                TextColor = OxyColor.FromRgb(30, 41, 59),
+                PlotAreaBorderColor = OxyColor.FromRgb(226, 232, 240),
+                TitleFontSize = 14
             };
 
             _plotModel.Axes.Add(new DateTimeAxis
             {
-                Position           = AxisPosition.Bottom,
-                StringFormat       = "HH:mm:ss",
-                Title              = "Thời gian",
-                TextColor          = OxyColor.FromRgb(100, 116, 139),
-                TicklineColor      = OxyColor.FromRgb(226, 232, 240),
+                Position = AxisPosition.Bottom,
+                StringFormat = "HH:mm:ss",
+                Title = "Thời gian",
+                TextColor = OxyColor.FromRgb(100, 116, 139),
+                TicklineColor = OxyColor.FromRgb(226, 232, 240),
                 MajorGridlineStyle = LineStyle.Solid,
                 MajorGridlineColor = OxyColor.FromArgb(120, 226, 232, 240),
-                IntervalType       = DateTimeIntervalType.Seconds
+                IntervalType = DateTimeIntervalType.Seconds
             });
 
             _plotModel.Axes.Add(new LinearAxis
             {
-                Position           = AxisPosition.Left,
-                Title              = "Khối lượng",
-                TextColor          = OxyColor.FromRgb(100, 116, 139),
-                TicklineColor      = OxyColor.FromRgb(226, 232, 240),
+                Position = AxisPosition.Left,
+                Title = "Khối lượng",
+                TextColor = OxyColor.FromRgb(100, 116, 139),
+                TicklineColor = OxyColor.FromRgb(226, 232, 240),
                 MajorGridlineStyle = LineStyle.Solid,
                 MajorGridlineColor = OxyColor.FromArgb(120, 226, 232, 240)
             });
 
             _weightSeries = new LineSeries
             {
-                Title           = "Khối lượng",
-                Color           = OxyColor.FromRgb(0, 159, 227),  // BrandBlue
+                Title = "Khối lượng",
+                Color = OxyColor.FromRgb(0, 159, 227),  // BrandBlue
                 StrokeThickness = 2.5,
-                MarkerType      = MarkerType.None
+                MarkerType = MarkerType.None
             };
 
             _plotModel.Series.Add(_weightSeries);
@@ -403,8 +441,8 @@ namespace Test
         {
             try
             {
-                int todayCount      = _repository.GetTodayCount();
-                decimal batchTotal  = _repository.GetBatchTotal(tboBatch.Text.Trim());
+                int todayCount = _repository.GetTodayCount();
+                decimal batchTotal = _repository.GetBatchTotal(tboBatch.Text.Trim());
 
                 lbStatTodayValue.Text = todayCount.ToString();
                 lbStatBatchValue.Text = $"{batchTotal:F4} g";
@@ -439,7 +477,7 @@ namespace Test
             if (e.KeyCode == Keys.Enter)
             {
                 e.SuppressKeyPress = true; // Chặn tiếng bíp mặc định của Windows
-                
+
                 if (sender == tboNat)
                 {
                     tboBatch.Focus();
@@ -465,54 +503,209 @@ namespace Test
 
         private void InitializeSettingsTab()
         {
-            var tpSettings = new TabPage("⚙️ Cài đặt");
-            tpSettings.BackColor = Color.FromArgb(244, 246, 249);
-            tpSettings.Padding = new Padding(20);
+            _tpSettings = new TabPage("⚙️ Cài đặt");
+            _tpSettings.BackColor = Color.FromArgb(244, 246, 249);
+            _tpSettings.Padding = new Padding(20);
 
-            // GroupBox Backup
+            // GroupBox Backup & Restore
             var gbBackup = new GroupBox
             {
-                Text = "An toàn Dữ liệu (Backup)",
+                Text = "An toàn Dữ liệu (Backup & Restore)",
                 Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(227, 6, 19),
                 Location = new Point(20, 20),
-                Size = new Size(600, 150),
+                Size = new Size(600, 310),
                 BackColor = Color.White
             };
 
+            // --- Row 1: Manual Backup + Import ---
             var btnManualBackup = new Button
             {
-                Text = "💾 Sao lưu dữ liệu thủ công (Manual Backup)",
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Text = "💾 Sao lưu thủ công",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 BackColor = Color.FromArgb(34, 197, 94),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Location = new Point(30, 50),
-                Size = new Size(540, 50)
+                Location = new Point(30, 40),
+                Size = new Size(260, 40)
             };
             btnManualBackup.FlatAppearance.BorderSize = 0;
             btnManualBackup.Click += (s, e) => PerformManualBackup();
 
+            var btnImportDB = new Button
+            {
+                Text = "📂 Phục hồi dữ liệu (Import)",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                BackColor = Color.FromArgb(245, 158, 11),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(310, 40),
+                Size = new Size(260, 40)
+            };
+            btnImportDB.FlatAppearance.BorderSize = 0;
+            btnImportDB.Click += async (s, e) => await ImportDatabaseAsync();
+
+            // --- Row 2: Auto backup interval (ComboBox) ---
+            var lbBackupInterval = new Label
+            {
+                Text = "Chu kỳ sao lưu tự động:",
+                Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Location = new Point(30, 100),
+                AutoSize = true
+            };
+
+            // Preset options: label → hours
+            var intervalOptions = new (string Label, int Hours)[]
+            {
+                ("3 giờ",   3),
+                ("24 giờ",  24),
+                ("3 ngày",  72),
+                ("7 ngày",  168),
+                ("30 ngày", 720)
+            };
+
+            var cboInterval = new ComboBox
+            {
+                Font = new Font("Segoe UI", 11F),
+                Location = new Point(220, 97),
+                Size = new Size(150, 32),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            foreach (var opt in intervalOptions)
+                cboInterval.Items.Add(opt.Label);
+
+            // Pre-select current setting
+            int currentHours = AppConfig.Load().AutoBackupIntervalHours;
+            int selectedIndex = 0;
+            for (int i = 0; i < intervalOptions.Length; i++)
+            {
+                if (intervalOptions[i].Hours == currentHours) { selectedIndex = i; break; }
+            }
+            cboInterval.SelectedIndex = selectedIndex;
+
+            var btnSaveBackupInterval = new Button
+            {
+                Text = "Lưu chu kỳ",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(0, 159, 227),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(382, 97),
+                Size = new Size(110, 32)
+            };
+            btnSaveBackupInterval.FlatAppearance.BorderSize = 0;
+            btnSaveBackupInterval.Click += (s, e) =>
+            {
+                int idx = cboInterval.SelectedIndex;
+                if (idx < 0) return;
+                int hours = intervalOptions[idx].Hours;
+
+                var config = AppConfig.Load();
+                config.AutoBackupIntervalHours = hours;
+                config.Save();
+
+                if (_autoBackupTimer != null)
+                    _autoBackupTimer.Interval = hours * 60 * 60 * 1000;
+
+                MessageBox.Show(
+                    $"Đã lưu chu kỳ tự động sao lưu: {intervalOptions[idx].Label}",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
+            // --- Row 3: Dropbox folder path (pushed down to avoid overlap with interval row) ---
+            var lbDropbox = new Label
+            {
+                Text = "📦 Thư mục Dropbox (để sao lưu tự động):",
+                Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Location = new Point(30, 158),
+                AutoSize = true
+            };
+
+            var tboDropboxPath = new TextBox
+            {
+                Text = AppConfig.Load().DropboxFolderPath,
+                Font = new Font("Segoe UI", 10F),
+                Location = new Point(30, 185),
+                Size = new Size(440, 28),
+                BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "Để trống = lưu vào thư mục Backups/ mặc định"
+            };
+
+            var btnBrowseDropbox = new Button
+            {
+                Text = "📁 Chọn...",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(99, 102, 241),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(480, 184),
+                Size = new Size(90, 30)
+            };
+            btnBrowseDropbox.FlatAppearance.BorderSize = 0;
+            btnBrowseDropbox.Click += (s, e) =>
+            {
+                using var dlg = new FolderBrowserDialog
+                {
+                    Description = "Chọn thư mục Dropbox để lưu file backup",
+                    UseDescriptionForTitle = true,
+                    ShowNewFolderButton = true,
+                    SelectedPath = tboDropboxPath.Text
+                };
+                if (dlg.ShowDialog() == DialogResult.OK)
+                    tboDropboxPath.Text = dlg.SelectedPath;
+            };
+
+            var btnSaveDropbox = new Button
+            {
+                Text = "💾 Lưu đường dẫn",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(34, 197, 94),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(30, 228),
+                Size = new Size(160, 32)
+            };
+            btnSaveDropbox.FlatAppearance.BorderSize = 0;
+            btnSaveDropbox.Click += (s, e) =>
+            {
+                var config = AppConfig.Load();
+                config.DropboxFolderPath = tboDropboxPath.Text.Trim();
+                config.Save();
+                MessageBox.Show(
+                    "Đã lưu đường dẫn Dropbox!\nCác bản sao lưu tự động tiếp theo sẽ được lưu vào thư mục này.",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
             var lbBackupInfo = new Label
             {
-                Text = "Hệ thống tự động sao lưu mỗi 4 tiếng. Bạn có thể sao lưu thủ công tại đây.",
-                Font = new Font("Segoe UI", 10F, FontStyle.Regular),
+                Text = "Dropbox app sẽ tự đồng bộ file backup lên mây sau khi lưu.",
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
                 ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(30, 110),
+                Location = new Point(200, 235),
                 AutoSize = true
             };
 
             gbBackup.Controls.Add(btnManualBackup);
+            gbBackup.Controls.Add(btnImportDB);
+            gbBackup.Controls.Add(lbBackupInterval);
+            gbBackup.Controls.Add(cboInterval);
+            gbBackup.Controls.Add(btnSaveBackupInterval);
+            gbBackup.Controls.Add(lbDropbox);
+            gbBackup.Controls.Add(tboDropboxPath);
+            gbBackup.Controls.Add(btnBrowseDropbox);
+            gbBackup.Controls.Add(btnSaveDropbox);
             gbBackup.Controls.Add(lbBackupInfo);
 
-            // GroupBox API
+            // GroupBox API (Cấu hình Hệ thống)
             var gbApi = new GroupBox
             {
-                Text = "Cấu hình API Server",
+                Text = "Cấu hình Hệ thống",
                 Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(227, 6, 19),
-                Location = new Point(20, 190),
-                Size = new Size(600, 180),
+                Location = new Point(20, 350),
+                Size = new Size(600, 240),
                 BackColor = Color.White
             };
 
@@ -521,7 +714,7 @@ namespace Test
                 Text = "Địa chỉ Máy chủ Trung tâm (API URL):",
                 Font = new Font("Segoe UI", 11F, FontStyle.Regular),
                 ForeColor = Color.FromArgb(30, 41, 59),
-                Location = new Point(30, 50),
+                Location = new Point(30, 30),
                 AutoSize = true
             };
 
@@ -529,9 +722,73 @@ namespace Test
             {
                 Text = AppConfig.Load().ApiServerUrl,
                 Font = new Font("Segoe UI", 11F),
-                Location = new Point(30, 80),
+                Location = new Point(30, 58),
                 Size = new Size(540, 32),
                 BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lbDeviceId = new Label
+            {
+                Text = "Tên máy trạm (Device ID):",
+                Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Location = new Point(30, 100),
+                AutoSize = true
+            };
+
+            var tboDeviceId = new TextBox
+            {
+                Text = AppConfig.Load().DeviceId,
+                Font = new Font("Segoe UI", 11F),
+                Location = new Point(30, 128),
+                Size = new Size(310, 32),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblConnStatus = new Label
+            {
+                Text = "Chưa kiểm tra",
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
+                ForeColor = Color.Gray,
+                Location = new Point(360, 133),
+                AutoSize = true
+            };
+
+            var btnTestConn = new Button
+            {
+                Text = "🔌 Kiểm tra kết nối",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(99, 102, 241),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(30, 178),
+                Size = new Size(180, 36)
+            };
+            btnTestConn.FlatAppearance.BorderSize = 0;
+            btnTestConn.Click += async (s, e) =>
+            {
+                string urlToTest = tboApiUrl.Text.Trim();
+                if (string.IsNullOrWhiteSpace(urlToTest))
+                {
+                    lblConnStatus.Text = "⚠️ Chưa nhập URL";
+                    lblConnStatus.ForeColor = Color.Orange;
+                    return;
+                }
+
+                btnTestConn.Enabled = false;
+                lblConnStatus.Text = "Đang kiểm tra...";
+                lblConnStatus.ForeColor = Color.Gray;
+
+                // Dùng static method — test URL mới ngay mà không cần restart App
+                bool ok = await Test.Services.NetworkService.CheckUrlAsync(urlToTest);
+
+                lblConnStatus.Text = ok ? "✅ Kết nối thành công" : "❌ Không kết nối được";
+                lblConnStatus.ForeColor = ok ? Color.FromArgb(34, 197, 94) : Color.Red;
+
+                if (!ok)
+                    LogError($"Kiểm tra kết nối thất bại: {urlToTest}/api/health");
+
+                btnTestConn.Enabled = true;
             };
 
             var btnSaveApi = new Button
@@ -541,27 +798,233 @@ namespace Test
                 BackColor = Color.FromArgb(0, 159, 227),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Location = new Point(30, 125),
-                Size = new Size(150, 40)
+                Location = new Point(230, 178),
+                Size = new Size(150, 36)
             };
             btnSaveApi.FlatAppearance.BorderSize = 0;
-            btnSaveApi.Click += (s, e) => 
+            btnSaveApi.Click += (s, e) =>
             {
                 var config = AppConfig.Load();
                 config.ApiServerUrl = tboApiUrl.Text.Trim();
+                config.DeviceId = string.IsNullOrWhiteSpace(tboDeviceId.Text)
+                    ? System.Environment.MachineName
+                    : tboDeviceId.Text.Trim();
                 config.Save();
-                MessageBox.Show("Đã lưu cấu hình API thành công!\nVui lòng khởi động lại ứng dụng để áp dụng địa chỉ mới.", 
+
+                MessageBox.Show(
+                    "Đã lưu cấu hình thành công!\nỨng dụng sẽ tự động khởi động lại để áp dụng cài đặt mới.",
                     "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Application.Restart();
+                Environment.Exit(0);
             };
 
             gbApi.Controls.Add(lbApiUrl);
             gbApi.Controls.Add(tboApiUrl);
+            gbApi.Controls.Add(lbDeviceId);
+            gbApi.Controls.Add(tboDeviceId);
+            gbApi.Controls.Add(lblConnStatus);
+            gbApi.Controls.Add(btnTestConn);
             gbApi.Controls.Add(btnSaveApi);
 
-            tpSettings.Controls.Add(gbBackup);
-            tpSettings.Controls.Add(gbApi);
+            // ── GroupBox Đổi mật khẩu Admin ─────────────────────────────────
+            var gbPassword = new GroupBox
+            {
+                Text = "🔐 Đổi mật khẩu Admin (Cho App Cân)",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(227, 6, 19),
+                Location = new Point(20, 610),
+                Size = new Size(600, 220),
+                BackColor = Color.White
+            };
 
-            tcDashboard.TabPages.Add(tpSettings);
+            // Helper tạo password row (label + textbox + toggle show)
+            TextBox MakePasswordBox(string labelText, int y, out CheckBox chkShow)
+            {
+                var lbl = new Label { Text = labelText, Font = new Font("Segoe UI", 10F), Location = new Point(30, y), AutoSize = true, ForeColor = Color.FromArgb(30, 41, 59) };
+                var tbo = new TextBox { Font = new Font("Segoe UI", 11F), Location = new Point(30, y + 24), Size = new Size(430, 30), PasswordChar = '•', BorderStyle = BorderStyle.FixedSingle };
+                var chk = new CheckBox { Text = "Hiện", Font = new Font("Segoe UI", 9F), Location = new Point(470, y + 27), AutoSize = true };
+                chk.CheckedChanged += (s, e) => tbo.PasswordChar = chk.Checked ? '\0' : '•';
+                gbPassword.Controls.Add(lbl);
+                gbPassword.Controls.Add(tbo);
+                gbPassword.Controls.Add(chk);
+                chkShow = chk;
+                return tbo;
+            }
+
+            var tboOldPass = MakePasswordBox("Mật khẩu hiện tại:", 28, out _);
+            var tboNewPass = MakePasswordBox("Mật khẩu mới:", 90, out _);
+            var tboConfPass = MakePasswordBox("Xác nhận mật khẩu mới:", 152, out _);
+
+            var btnChangePass = new Button
+            {
+                Text = "Đổi mật khẩu",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(220, 38, 38),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(30, 185),
+                Size = new Size(150, 34)
+            };
+            btnChangePass.FlatAppearance.BorderSize = 0;
+            btnChangePass.Click += (s, e) =>
+            {
+                string oldPass = tboOldPass.Text;
+                string newPass = tboNewPass.Text;
+                string confPass = tboConfPass.Text;
+
+                var config = AppConfig.Load();
+                if (oldPass != config.AdminPassword)
+                {
+                    MessageBox.Show("Mật khẩu hiện tại không đúng!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(newPass) || newPass.Length < 6)
+                {
+                    MessageBox.Show("Mật khẩu mới phải có ít nhất 6 ký tự!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                if (newPass != confPass)
+                {
+                    MessageBox.Show("Mật khẩu mới và xác nhận không khớp!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                config.AdminPassword = newPass;
+                config.Save();
+                tboOldPass.Clear(); tboNewPass.Clear(); tboConfPass.Clear();
+                MessageBox.Show("Đã đổi mật khẩu Admin thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            gbPassword.Controls.Add(btnChangePass);
+
+            // ── GroupBox API Key ──────────────────────────────────────────
+            var gbApiKey = new GroupBox
+            {
+                Text = "🔑 Mã khoá kết nối máy chủ (API Key)",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(227, 6, 19),
+                Location = new Point(20, 850),
+                Size = new Size(600, 160),
+                BackColor = Color.White
+            };
+
+            var lblApiKey = new Label { Text = "API Key:", Font = new Font("Segoe UI", 10F), Location = new Point(30, 40), AutoSize = true, ForeColor = Color.FromArgb(30, 41, 59) };
+            var tboApiKey = new TextBox { Font = new Font("Segoe UI", 11F), Location = new Point(30, 65), Size = new Size(430, 30), PasswordChar = ' ', BorderStyle = BorderStyle.FixedSingle };
+            var chkShowApiKey = new CheckBox { Text = "Hiện", Font = new Font("Segoe UI", 9F), Location = new Point(470, 68), AutoSize = true };
+            chkShowApiKey.CheckedChanged += (s, e) => tboApiKey.PasswordChar = chkShowApiKey.Checked ? '\0' : ' ';
+            tboApiKey.Text = AppConfig.Load().ApiKey;
+
+            var btnSaveApiKey = new Button
+            {
+                Text = "Lưu API Key",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(220, 38, 38),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(30, 110),
+                Size = new Size(150, 34)
+            };
+            btnSaveApiKey.FlatAppearance.BorderSize = 0;
+            btnSaveApiKey.Click += (s, e) =>
+            {
+                var config = AppConfig.Load();
+                config.ApiKey = tboApiKey.Text.Trim();
+                config.Save();
+                MessageBox.Show("Đã lưu API Key thành công!\nỨng dụng sẽ tự động khởi động lại để áp dụng cài đặt mới.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Application.Restart();
+                Environment.Exit(0);
+            };
+
+            gbApiKey.Controls.Add(lblApiKey);
+            gbApiKey.Controls.Add(tboApiKey);
+            gbApiKey.Controls.Add(chkShowApiKey);
+            gbApiKey.Controls.Add(btnSaveApiKey);
+
+            // ── GroupBox Error Log ───────────────────────────────────────────
+            var gbLog = new GroupBox
+            {
+                Text = "📋 Nhật ký lỗi (Error Log)",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(227, 6, 19),
+                Location = new Point(20, 850),
+                Size = new Size(600, 250),
+                BackColor = Color.White
+            };
+
+            _txtErrorLog = new TextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Font = new Font("Consolas", 9F),
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(134, 239, 172),
+                Location = new Point(10, 35),
+                Size = new Size(578, 160),
+                BorderStyle = BorderStyle.None
+            };
+            // Điền lại các lỗi đã có từ trước
+            if (_errorLog.Count > 0)
+                _txtErrorLog.Text = string.Join(Environment.NewLine, _errorLog);
+
+            var btnClearLog = new Button
+            {
+                Text = "🗑 Xóa log",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BackColor = Color.FromArgb(100, 116, 139),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(10, 205),
+                Size = new Size(100, 28)
+            };
+            btnClearLog.FlatAppearance.BorderSize = 0;
+            btnClearLog.Click += (s, e) => { _errorLog.Clear(); _txtErrorLog.Clear(); };
+
+            var btnCopyLog = new Button
+            {
+                Text = "📋 Copy log",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BackColor = Color.FromArgb(99, 102, 241),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(120, 205),
+                Size = new Size(110, 28)
+            };
+            btnCopyLog.FlatAppearance.BorderSize = 0;
+            btnCopyLog.Click += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(_txtErrorLog.Text))
+                    Clipboard.SetText(_txtErrorLog.Text);
+            };
+
+            gbLog.Controls.Add(_txtErrorLog);
+            gbLog.Controls.Add(btnClearLog);
+            gbLog.Controls.Add(btnCopyLog);
+
+            // Cho phép cuộn trong tab Cài đặt (nội dung dài)
+            _tpSettings.AutoScroll = true;
+
+            // Nút tạo dữ liệu ảo để test
+            var btnFakeData = new Button
+            {
+                Text = "Tạo dữ liệu Cân Ảo (Test)",
+                Location = new Point(gbLog.Left, gbLog.Bottom + 10),
+                Size = new Size(gbLog.Width, 40),
+                BackColor = Color.FromArgb(99, 102, 241),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+            };
+            btnFakeData.FlatAppearance.BorderSize = 0;
+            btnFakeData.Click += btnTestFakeData_Click;
+
+            _tpSettings.Controls.Add(gbBackup);
+            _tpSettings.Controls.Add(gbApi);
+            _tpSettings.Controls.Add(gbPassword);
+            _tpSettings.Controls.Add(gbApiKey);
+            _tpSettings.Controls.Add(gbLog);
+            _tpSettings.Controls.Add(btnFakeData);
+
+            // Removed tcDashboard.TabPages.Add(_tpSettings) here since UpdateRoleUI manages it.
         }
 
         private void SaveCurrentWeight(bool isAuto)
@@ -598,6 +1061,9 @@ namespace Test
                     Tester = tboTester.Text.Trim()
                 };
 
+                // Lưu dữ liệu qua facade đồng bộ mạng
+                _ = _dbService.SaveRecordAsync(record);
+                // Vẫn lưu local qua _repository.Insert cho UI grid
                 _repository.Insert(record);
 
                 // Audio feedback
@@ -607,13 +1073,36 @@ namespace Test
                 {
                     MessageBox.Show("Đã lưu số liệu thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                
+
                 LoadDataToGrid(); // UpdateStats() is called inside LoadDataToGrid
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Lỗi khi lưu dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // --- Nút Ẩn: Dùng để Test đẩy dữ liệu mà không cần Cân thật ---
+        private void btnTestFakeData_Click(object? sender, EventArgs e)
+        {
+            var record = new ScaleRecord
+            {
+                Timestamp = DateTime.Now,
+                Weight = (decimal)new Random().Next(10, 500) / 10m,
+                Unit = "kg",
+                NatCode = tboNat.Text.Trim() == "" ? "TEST_NAT" : tboNat.Text.Trim(),
+                Batch = tboBatch.Text.Trim() == "" ? "TEST_BATCH" : tboBatch.Text.Trim(),
+                SampleName = "Cân Ảo Test",
+                Location = "Bàn Test 1",
+                Tester = "Admin Test"
+            };
+
+            _ = _dbService.SaveRecordAsync(record);
+            _repository.Insert(record);
+
+            System.Media.SystemSounds.Beep.Play();
+            LoadDataToGrid();
+            MessageBox.Show($"Đã tạo và đẩy 1 bản ghi Cân Ảo ({record.Weight} kg) lên Server!", "Test Sync", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void LoadDataToGrid()
@@ -630,29 +1119,47 @@ namespace Test
             }
         }
 
+        // Add custom textboxes for column filters
+        private TextBox _txtFilterNat = new TextBox();
+        private TextBox _txtFilterBatch = new TextBox();
+        private TextBox _txtFilterSample = new TextBox();
+        private TextBox _txtFilterLocation = new TextBox();
+
         private void ApplyFilter()
         {
             string keyword = tboSearch.Text.Trim().ToLower();
-            if (string.IsNullOrEmpty(keyword))
+            string nat = _txtFilterNat.Text.Trim().ToLower();
+            string batch = _txtFilterBatch.Text.Trim().ToLower();
+            string sample = _txtFilterSample.Text.Trim().ToLower();
+            string location = _txtFilterLocation.Text.Trim().ToLower();
+
+            var filtered = new System.ComponentModel.BindingList<ScaleRecord>();
+            foreach (var record in _allRecords)
             {
-                dgvWeightsheet.DataSource = _allRecords;
-            }
-            else
-            {
-                var filtered = new System.Collections.Generic.List<ScaleRecord>();
-                foreach (var record in _allRecords)
+                bool matchKeyword = string.IsNullOrEmpty(keyword) ||
+                    ((record.NatCode != null && record.NatCode.ToLower().Contains(keyword)) ||
+                     (record.Batch != null && record.Batch.ToLower().Contains(keyword)) ||
+                     (record.SampleName != null && record.SampleName.ToLower().Contains(keyword)) ||
+                     (record.Location != null && record.Location.ToLower().Contains(keyword)) ||
+                     (record.Unit != null && record.Unit.ToLower().Contains(keyword)));
+
+                bool matchNat = string.IsNullOrEmpty(nat) || (record.NatCode != null && record.NatCode.ToLower().Contains(nat));
+                bool matchBatch = string.IsNullOrEmpty(batch) || (record.Batch != null && record.Batch.ToLower().Contains(batch));
+                bool matchSample = string.IsNullOrEmpty(sample) || (record.SampleName != null && record.SampleName.ToLower().Contains(sample));
+                bool matchLocation = string.IsNullOrEmpty(location) || (record.Location != null && record.Location.ToLower().Contains(location));
+
+                if (matchKeyword && matchNat && matchBatch && matchSample && matchLocation)
                 {
-                    if ((record.NatCode != null && record.NatCode.ToLower().Contains(keyword)) ||
-                        (record.Batch != null && record.Batch.ToLower().Contains(keyword)) ||
-                        (record.SampleName != null && record.SampleName.ToLower().Contains(keyword)) ||
-                        (record.Location != null && record.Location.ToLower().Contains(keyword)) ||
-                        (record.Unit != null && record.Unit.ToLower().Contains(keyword)))
-                    {
-                        filtered.Add(record);
-                    }
+                    filtered.Add(record);
                 }
-                dgvWeightsheet.DataSource = filtered;
             }
+
+            dgvWeightsheet.DataSource = filtered;
+        }
+
+        private void Filter_TextChanged(object? sender, EventArgs e)
+        {
+            ApplyFilter();
         }
 
         private void tboSearch_TextChanged(object? sender, EventArgs e)
@@ -664,7 +1171,9 @@ namespace Test
         {
             try
             {
-                var data = _repository.GetAll();
+                var dataSource = dgvWeightsheet.DataSource as System.ComponentModel.BindingList<ScaleRecord>;
+                var data = dataSource != null ? new System.Collections.Generic.List<ScaleRecord>(dataSource) : new System.Collections.Generic.List<ScaleRecord>();
+
                 if (data.Count == 0)
                 {
                     MessageBox.Show("Không có dữ liệu để xuất.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -673,8 +1182,8 @@ namespace Test
 
                 using (var dlg = new SaveFileDialog())
                 {
-                    dlg.Title    = "Xuất dữ liệu cân";
-                    dlg.Filter   = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
+                    dlg.Title = "Xuất dữ liệu cân";
+                    dlg.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
                     dlg.FileName = $"ScaleData_{DateTime.Now:yyyyMMdd_HHmmss}";
 
                     if (dlg.ShowDialog() == DialogResult.OK)
@@ -745,7 +1254,14 @@ namespace Test
         {
             try
             {
-                string backupDir = System.IO.Path.Combine(Application.StartupPath, "Backups");
+                var config = AppConfig.Load();
+
+                // Ưu tiên lưu vào thư mục Dropbox nếu đã cấu hình, ngược lại dùng Backups/ mặc định
+                string dropboxPath = config.DropboxFolderPath?.Trim() ?? "";
+                string backupDir = (!string.IsNullOrEmpty(dropboxPath) && System.IO.Directory.Exists(dropboxPath))
+                    ? System.IO.Path.Combine(dropboxPath, "ScaleData_Backups")
+                    : System.IO.Path.Combine(Application.StartupPath, "Backups");
+
                 if (!System.IO.Directory.Exists(backupDir))
                     System.IO.Directory.CreateDirectory(backupDir);
 
@@ -754,16 +1270,17 @@ namespace Test
 
                 await DatabaseHelper.BackupDatabaseAsync(destPath);
 
-                // Clean up old backups (> 7 days)
+                // Dọn file cũ: giữ tương đương 5 chu kỳ gần nhất
+                int keepDays = Math.Max(1, (config.AutoBackupIntervalHours * 5) / 24);
                 var oldFiles = System.IO.Directory.GetFiles(backupDir, "ScaleData_AutoBackup_*.db")
                     .Select(f => new System.IO.FileInfo(f))
-                    .Where(f => f.CreationTime < DateTime.Now.AddDays(-7));
+                    .Where(f => f.CreationTime < DateTime.Now.AddDays(-keepDays));
                 foreach (var file in oldFiles)
                 {
                     try { file.Delete(); } catch { }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[AutoBackup] Thành công: {fileName}");
+                System.Diagnostics.Debug.WriteLine($"[AutoBackup] Thành công: {fileName} → {backupDir}");
             }
             catch (Exception ex)
             {
@@ -794,6 +1311,58 @@ namespace Test
             }
         }
 
+        private async System.Threading.Tasks.Task ImportDatabaseAsync()
+        {
+            using (var dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Chọn file dữ liệu để phục hồi (Import)";
+                dlg.Filter = "SQLite Database (*.db)|*.db";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    var confirmResult = MessageBox.Show(
+                        "CẢNH BÁO: Việc phục hồi dữ liệu sẽ XÓA TOÀN BỘ dữ liệu hiện tại và thay thế bằng dữ liệu từ file bạn chọn.\n\nBạn có chắc chắn muốn tiếp tục?",
+                        "Xác nhận Phục hồi",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (confirmResult == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            // Đảm bảo không ai đang ghi vào DB
+                            await DatabaseHelper.DbAccessLock.WaitAsync();
+
+                            // Dừng các timer và connection
+                            _uiTimer?.Stop();
+                            _autoBackupTimer?.Stop();
+                            if (_connectionManager.IsConnected) _connectionManager.Disconnect();
+
+                            // Copy đè file
+                            string currentDbPath = System.IO.Path.Combine(Application.StartupPath, "ScaleData.db");
+                            System.IO.File.Copy(dlg.FileName, currentDbPath, true);
+
+                            MessageBox.Show("Đã phục hồi dữ liệu thành công! Ứng dụng sẽ tải lại dữ liệu.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Lỗi khi phục hồi dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        finally
+                        {
+                            DatabaseHelper.DbAccessLock.Release();
+
+                            // Khởi động lại
+                            _uiTimer?.Start();
+                            _autoBackupTimer?.Start();
+                            LoadDataToGrid();
+                            UpdateStats();
+                        }
+                    }
+                }
+            }
+        }
+
         private async void Form1_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (e.CloseReason == CloseReason.UserClosing)
@@ -802,7 +1371,7 @@ namespace Test
                 string msg = unsyncedCount > 0
                     ? $"CẢNH BÁO: Còn {unsyncedCount} dòng dữ liệu chưa được đồng bộ lên máy chủ.\nNếu thoát, dữ liệu sẽ lưu trữ nội bộ và tự động gửi vào lần mở ứng dụng tiếp theo.\n\nBạn có chắc chắn muốn thoát?"
                     : "Bạn có chắc chắn muốn thoát ứng dụng không?\nHệ thống sẽ tự động tạo một bản sao lưu dữ liệu trước khi đóng.";
-                
+
                 var confirmResult = MessageBox.Show(msg, "Xác nhận thoát", MessageBoxButtons.YesNo, unsyncedCount > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Question);
                 if (confirmResult == DialogResult.No)
                 {
@@ -826,7 +1395,7 @@ namespace Test
                     _connectionManager?.Dispose();
                     trayIcon.Visible = false;
                     trayIcon.Dispose();
-                    
+
                     this.Close();
                 }
             }
@@ -842,6 +1411,235 @@ namespace Test
 
             // Đảm bảo DataGridView phóng to columns
             dgvWeightsheet.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
+            // Create Login/Logout button
+            _btnLogin = new Button
+            {
+                Text = "Đăng nhập Admin",
+                Location = new Point(this.ClientSize.Width - 160, 10),
+                Size = new Size(140, 30),
+                BackColor = Color.FromArgb(0, 159, 227),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            _btnLogin.FlatAppearance.BorderSize = 0;
+            _btnLogin.Click += BtnLogin_Click;
+            this.Controls.Add(_btnLogin);
+            _btnLogin.BringToFront();
+
+            UpdateRoleUI();
+            InitializeDataGridView();
+            // Server status label — hiển thị ở góc dưới bên trái, luôn thấy dù là User hay Admin
+            _lblServerStatus = new Label
+            {
+                Text = "🔴 Server: Chưa kết nối",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = Color.Red,
+                Location = new Point(8, this.ClientSize.Height - 24),
+                AutoSize = true,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            };
+            this.Controls.Add(_lblServerStatus);
+            _lblServerStatus.BringToFront();
+
+            // Ping server định kỳ mỗi 30 giây để cập nhật trạng thái
+            _serverPingTimer = new System.Windows.Forms.Timer { Interval = 30000 };
+            _serverPingTimer.Tick += async (s, e) => await PingServerStatusAsync();
+            _serverPingTimer.Start();
+
+            // Ping ngay lúc khởi động
+            _ = PingServerStatusAsync();
+        }
+
+        private void InitializeDataGridView()
+        {
+            // Set grid features
+            dgvWeightsheet.MultiSelect = true;
+            dgvWeightsheet.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvWeightsheet.ReadOnly = false; // Enable inline edit
+
+            // Configure columns after data binding in LoadDataToGrid
+            dgvWeightsheet.DataBindingComplete += (s, e) =>
+            {
+                foreach (DataGridViewColumn col in dgvWeightsheet.Columns)
+                {
+                    if (col.Name == "Id" || col.Name == "Timestamp" || col.Name == "Weight" || col.Name == "Unit")
+                    {
+                        col.ReadOnly = true;
+                        col.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240);
+                    }
+                }
+
+                if (dgvWeightsheet.Columns.Contains("IsSelected"))
+                {
+                    var chkCol = dgvWeightsheet.Columns["IsSelected"];
+                    chkCol.HeaderText = "Chọn";
+                    chkCol.DisplayIndex = 0;
+                    chkCol.Width = 50;
+                    chkCol.ReadOnly = false;
+                }
+            };
+
+            // Bulk Delete context menu
+            var ctxMenu = new ContextMenuStrip();
+            var delItem = new ToolStripMenuItem("Xóa các dòng đã chọn", null, (s, e) =>
+            {
+                var idsToDelete = new System.Collections.Generic.List<long>();
+                foreach (DataGridViewRow row in dgvWeightsheet.Rows)
+                {
+                    if (row.DataBoundItem is ScaleRecord record && (record.IsSelected || row.Selected))
+                    {
+                        if (!idsToDelete.Contains(record.Id))
+                        {
+                            idsToDelete.Add(record.Id);
+                        }
+                    }
+                }
+
+                if (idsToDelete.Count > 0)
+                {
+                    var res = MessageBox.Show($"Bạn có chắc muốn xóa {idsToDelete.Count} dòng dữ liệu này khỏi máy tính?", "Xác nhận xóa", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (res == DialogResult.Yes)
+                    {
+                        _repository.DeleteBatch(idsToDelete);
+                        LoadDataToGrid(); // Refresh
+                        MessageBox.Show("Đã xóa dữ liệu thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Vui lòng chọn ít nhất một dòng để xóa.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            });
+            ctxMenu.Items.Add(delItem);
+            dgvWeightsheet.ContextMenuStrip = ctxMenu;
+
+            // Add explicit Bulk Delete button on UI
+            var btnBulkDelete = new Button
+            {
+                Text = "🗑 Xóa mục đã chọn",
+                Size = new Size(180, 28),
+                BackColor = Color.White,
+                ForeColor = Color.Red,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Margin = new Padding(30, 2, 0, 0)
+            };
+            btnBulkDelete.FlatAppearance.BorderColor = Color.Red;
+            btnBulkDelete.Click += (s, e) => delItem.PerformClick();
+
+            // Auto-save inline edits
+            dgvWeightsheet.CellValueChanged += (s, e) =>
+            {
+                if (e.RowIndex >= 0)
+                {
+                    var row = dgvWeightsheet.Rows[e.RowIndex];
+                    if (row.DataBoundItem is ScaleRecord record)
+                    {
+                        _repository.Update(record);
+                    }
+                }
+            };
+
+            // Add Filter UI for columns
+            var pnlFilters = new FlowLayoutPanel
+            {
+                Location = new Point(17, 80),
+                Size = new Size(1350, 35),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = Color.Transparent
+            };
+
+            Label lblFNat = new Label { Text = "Lọc Nat:", AutoSize = true, Margin = new Padding(0, 8, 5, 0) };
+            _txtFilterNat.Size = new Size(120, 25);
+            _txtFilterNat.TextChanged += Filter_TextChanged;
+
+            Label lblFBatch = new Label { Text = "Batch:", AutoSize = true, Margin = new Padding(15, 8, 5, 0) };
+            _txtFilterBatch.Size = new Size(120, 25);
+            _txtFilterBatch.TextChanged += Filter_TextChanged;
+
+            Label lblFSample = new Label { Text = "Sample:", AutoSize = true, Margin = new Padding(15, 8, 5, 0) };
+            _txtFilterSample.Size = new Size(120, 25);
+            _txtFilterSample.TextChanged += Filter_TextChanged;
+
+            Label lblFLoc = new Label { Text = "Location:", AutoSize = true, Margin = new Padding(15, 8, 5, 0) };
+            _txtFilterLocation.Size = new Size(120, 25);
+            _txtFilterLocation.TextChanged += Filter_TextChanged;
+
+            pnlFilters.Controls.AddRange(new Control[] { lblFNat, _txtFilterNat, lblFBatch, _txtFilterBatch, lblFSample, _txtFilterSample, lblFLoc, _txtFilterLocation, btnBulkDelete });
+
+            // Adjust DataGridView location to make room
+            dgvWeightsheet.Location = new Point(17, 125);
+            dgvWeightsheet.Size = new Size(1358, 650); // Reduce height to accommodate the new filter row
+            tpDatasheet.Controls.Add(pnlFilters);
+        }
+
+        private async System.Threading.Tasks.Task PingServerStatusAsync()
+        {
+            bool ok = await Test.Services.NetworkService.Instance.CheckConnectionAsync();
+            if (_lblServerStatus.IsDisposed) return;
+            _lblServerStatus.Text = ok ? "🟢 Server: Đã kết nối" : "🔴 Server: Chưa kết nối";
+            _lblServerStatus.ForeColor = ok ? Color.FromArgb(22, 163, 74) : Color.Red;
+        }
+
+        private void BtnLogin_Click(object? sender, EventArgs e)
+        {
+            if (_isAdmin)
+            {
+                // Logout
+                _isAdmin = false;
+                UpdateRoleUI();
+                MessageBox.Show("Đã đăng xuất quyền Admin.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                // Login
+                using (var frm = new LoginForm())
+                {
+                    if (frm.ShowDialog() == DialogResult.OK && frm.IsAuthenticated)
+                    {
+                        _isAdmin = true;
+                        UpdateRoleUI();
+                        MessageBox.Show("Đăng nhập Admin thành công!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+        }
+
+        private void UpdateRoleUI()
+        {
+            if (_isAdmin)
+            {
+                _btnLogin.Text = "Đăng xuất";
+                _btnLogin.BackColor = Color.Gray;
+                btnImportData.Enabled = true;
+                btnImportData.BackColor = Color.FromArgb(46, 204, 113); // Green
+
+                if (_tpSettings != null && !tcDashboard.TabPages.Contains(_tpSettings))
+                {
+                    tcDashboard.TabPages.Add(_tpSettings);
+                }
+            }
+            else
+            {
+                _btnLogin.Text = "Đăng nhập Admin";
+                _btnLogin.BackColor = Color.FromArgb(0, 159, 227);
+                btnImportData.Enabled = false;
+                btnImportData.BackColor = Color.LightGray;
+
+                if (_tpSettings != null && tcDashboard.TabPages.Contains(_tpSettings))
+                {
+                    // If on settings tab when logged out, switch to dashboard
+                    if (tcDashboard.SelectedTab == _tpSettings)
+                    {
+                        tcDashboard.SelectedTab = tpDashboard;
+                    }
+                    tcDashboard.TabPages.Remove(_tpSettings);
+                }
+            }
         }
 
         private void SaveOriginalBounds(Control parent)
@@ -857,7 +1655,7 @@ namespace Test
         private void Form1_Resize(object? sender, EventArgs e)
         {
             if (_originalFormSize.Width == 0 || this.WindowState == FormWindowState.Minimized) return;
-            
+
             float ratioX = (float)this.ClientSize.Width / _originalFormSize.Width;
             float ratioY = (float)this.ClientSize.Height / _originalFormSize.Height;
             float ratioFont = Math.Min(ratioX, ratioY);
@@ -889,5 +1687,10 @@ namespace Test
         }
 
         #endregion
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

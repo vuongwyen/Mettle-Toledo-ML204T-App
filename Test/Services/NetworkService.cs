@@ -25,6 +25,11 @@ namespace Test.Services
 
         public static NetworkService Instance => _instance.Value;
 
+        /// <summary>
+        /// Sự kiện để UI (Form1) đăng ký nhận log lỗi từ service mạng.
+        /// </summary>
+        public event Action<string>? OnError;
+
         private const string LOCAL_VM_API_URL = "http://172.29.49.36:5000";
 
         private readonly HttpClient _httpClient;
@@ -49,10 +54,10 @@ namespace Test.Services
 
             _baseUrl = rawUrl.TrimEnd('/');
 
-            // [SEC-4.3] HttpClient được tạo với BearerTokenHandler trong pipeline.
-            // Mỗi request sẽ tự động nhận header Authorization: Bearer {token}.
+            // HttpClient được tạo với ApiKeyHandler trong pipeline.
+            // Mỗi request sẽ tự động nhận header X-Api-Key.
             _httpClient = new HttpClient(
-                new BearerTokenHandler(new HttpClientHandler()))
+                new ApiKeyHandler(new HttpClientHandler()))
             {
                 BaseAddress = new Uri(_baseUrl),
                 Timeout     = TimeSpan.FromSeconds(5)
@@ -69,21 +74,31 @@ namespace Test.Services
         }
 
         /// <summary>
-        /// Ping nhẹ tới /health để kiểm tra WLAN có kết nối được server hay không.
+        /// Ping nhẹ tới /api/health để kiểm tra có kết nối được server hay không.
         /// </summary>
         public async Task<bool> CheckConnectionAsync(CancellationToken cancellationToken = default)
+            => await CheckUrlAsync(_baseUrl, cancellationToken);
+
+        /// <summary>
+        /// Kiểm tra kết nối tới một URL bất kỳ (dùng cho nút Test trong tab Cài đặt).
+        /// Cho phép test URL mới mà không cần restart app.
+        /// </summary>
+        public static async Task<bool> CheckUrlAsync(string baseUrl, CancellationToken cancellationToken = default)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Head, "/health");
-                using var cts     = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromSeconds(3));
-
-                var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                string url = baseUrl.TrimEnd('/') + "/api/health";
+                var response = await client.GetAsync(url, cancellationToken);
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (TaskCanceledException)
             {
+                return false; // Timeout
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[NetworkService.CheckUrlAsync] {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
         }
@@ -123,7 +138,11 @@ namespace Test.Services
                 var response = await _httpClient.SendAsync(request, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
+                {
+                    string errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    OnError?.Invoke($"[Lỗi Đồng Bộ] Server từ chối dữ liệu (HTTP {(int)response.StatusCode}). Chi tiết: {errorBody}");
                     return new List<Guid>();
+                }
 
                 // Server trả về danh sách Id đã lưu thành công
                 var result = await response.Content.ReadFromJsonAsync<SyncResponse>(_jsonOptions, cancellationToken);
@@ -133,8 +152,9 @@ namespace Test.Services
             {
                 return new List<Guid>();
             }
-            catch (HttpRequestException)
+            catch (Exception ex)
             {
+                OnError?.Invoke($"[Lỗi Đồng Bộ] {ex.Message}");
                 return new List<Guid>();
             }
         }

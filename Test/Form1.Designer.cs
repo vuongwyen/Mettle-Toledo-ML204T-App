@@ -63,10 +63,10 @@ namespace Test
             lbStatMaxValue = new Label();
             plotViewLiveChart = new OxyPlot.WindowsForms.PlotView();
             tpDatasheet = new TabPage();
-            btnExportdata = new Button();
-            btnImportData = new Button();
-            lbSearch = new Label();
             tboSearch = new TextBox();
+            lbSearch = new Label();
+            btnImportData = new Button();
+            btnExportdata = new Button();
             label12 = new Label();
             dgvWeightsheet = new DataGridView();
             trayIcon = new NotifyIcon(components);
@@ -75,6 +75,7 @@ namespace Test
             trayMenuSep = new ToolStripSeparator();
             trayMenuExit = new ToolStripMenuItem();
             sqliteConnection1 = new Microsoft.Data.Sqlite.SqliteConnection();
+            sqliteConnection2 = new Microsoft.Data.Sqlite.SqliteConnection();
             tcDashboard.SuspendLayout();
             tpDashboard.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -219,9 +220,9 @@ namespace Test
             tboLocation.BorderStyle = BorderStyle.FixedSingle;
             tboLocation.Font = new Font("Segoe UI", 10.8F);
             tboLocation.ForeColor = Color.FromArgb(30, 41, 59);
-            tboLocation.Location = new Point(210, 208);
+            tboLocation.Location = new Point(10, 225);
             tboLocation.Name = "tboLocation";
-            tboLocation.Size = new Size(217, 31);
+            tboLocation.Size = new Size(200, 31);
             tboLocation.TabIndex = 10;
             // 
             // label10
@@ -230,7 +231,7 @@ namespace Test
             label10.BackColor = Color.Transparent;
             label10.Font = new Font("Segoe UI", 10.8F);
             label10.ForeColor = Color.FromArgb(100, 116, 139);
-            label10.Location = new Point(203, 180);
+            label10.Location = new Point(0, 196);
             label10.Name = "label10";
             label10.Size = new Size(130, 25);
             label10.TabIndex = 9;
@@ -242,20 +243,20 @@ namespace Test
             tboTester.BorderStyle = BorderStyle.FixedSingle;
             tboTester.Font = new Font("Segoe UI", 10.8F);
             tboTester.ForeColor = Color.FromArgb(30, 41, 59);
-            tboTester.Location = new Point(210, 268);
+            tboTester.Location = new Point(223, 225);
             tboTester.Name = "tboTester";
-            tboTester.Size = new Size(217, 31);
+            tboTester.Size = new Size(200, 31);
             tboTester.TabIndex = 11;
             // 
             // lblTester
             // 
             lblTester.AutoSize = true;
             lblTester.BackColor = Color.Transparent;
-            lblTester.Font = new Font("Segoe UI", 10.8F);
-            lblTester.ForeColor = Color.FromArgb(100, 116, 139);
-            lblTester.Location = new Point(203, 240);
+            lblTester.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            lblTester.ForeColor = Color.FromArgb(71, 85, 105);
+            lblTester.Location = new Point(223, 200);
             lblTester.Name = "lblTester";
-            lblTester.Size = new Size(160, 25);
+            lblTester.Size = new Size(134, 20);
             lblTester.TabIndex = 12;
             lblTester.Text = "Người test (Tester)";
             // 
@@ -265,20 +266,20 @@ namespace Test
             tboSamplename.BorderStyle = BorderStyle.FixedSingle;
             tboSamplename.Font = new Font("Segoe UI", 10.8F);
             tboSamplename.ForeColor = Color.FromArgb(30, 41, 59);
-            tboSamplename.Location = new Point(6, 332);
+            tboSamplename.Location = new Point(223, 155);
             tboSamplename.Name = "tboSamplename";
-            tboSamplename.Size = new Size(421, 31);
+            tboSamplename.Size = new Size(200, 31);
             tboSamplename.TabIndex = 8;
             // 
             // label9
             // 
             label9.AutoSize = true;
             label9.BackColor = Color.Transparent;
-            label9.Font = new Font("Segoe UI", 10.8F);
-            label9.ForeColor = Color.FromArgb(100, 116, 139);
-            label9.Location = new Point(6, 304);
+            label9.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            label9.ForeColor = Color.FromArgb(71, 85, 105);
+            label9.Location = new Point(223, 130);
             label9.Name = "label9";
-            label9.Size = new Size(204, 25);
+            label9.Size = new Size(176, 20);
             label9.TabIndex = 7;
             label9.Text = "Tên mẫu (Sample Name)";
             // 
@@ -288,9 +289,9 @@ namespace Test
             tboBatch.BorderStyle = BorderStyle.FixedSingle;
             tboBatch.Font = new Font("Segoe UI", 10.8F);
             tboBatch.ForeColor = Color.FromArgb(30, 41, 59);
-            tboBatch.Location = new Point(7, 208);
+            tboBatch.Location = new Point(10, 155);
             tboBatch.Name = "tboBatch";
-            tboBatch.Size = new Size(198, 31);
+            tboBatch.Size = new Size(200, 31);
             tboBatch.TabIndex = 6;
             // 
             // label8
@@ -299,7 +300,7 @@ namespace Test
             label8.BackColor = Color.Transparent;
             label8.Font = new Font("Segoe UI", 10.8F);
             label8.ForeColor = Color.FromArgb(100, 116, 139);
-            label8.Location = new Point(0, 180);
+            label8.Location = new Point(0, 130);
             label8.Name = "label8";
             label8.Size = new Size(134, 25);
             label8.TabIndex = 5;
@@ -311,9 +312,9 @@ namespace Test
             tboNat.BorderStyle = BorderStyle.FixedSingle;
             tboNat.Font = new Font("Segoe UI", 10.8F);
             tboNat.ForeColor = Color.FromArgb(30, 41, 59);
-            tboNat.Location = new Point(6, 103);
+            tboNat.Location = new Point(10, 85);
             tboNat.Name = "tboNat";
-            tboNat.Size = new Size(421, 31);
+            tboNat.Size = new Size(413, 31);
             tboNat.TabIndex = 4;
             // 
             // label7
@@ -322,11 +323,12 @@ namespace Test
             label7.BackColor = Color.Transparent;
             label7.Font = new Font("Segoe UI", 10.8F);
             label7.ForeColor = Color.FromArgb(100, 116, 139);
-            label7.Location = new Point(0, 75);
+            label7.Location = new Point(0, 60);
             label7.Name = "label7";
-            label7.Size = new Size(75, 25);
+            label7.Size = new Size(86, 25);
             label7.TabIndex = 3;
-            label7.Text = "Mã NAT";
+            label7.Text = "Mã NART";
+            label7.Click += label7_Click;
             // 
             // label6
             // 
@@ -610,19 +612,28 @@ namespace Test
             tpDatasheet.TabIndex = 1;
             tpDatasheet.Text = "Data Sheet";
             // 
-            // btnExportdata
+            // tboSearch
             // 
-            btnExportdata.BackColor = Color.FromArgb(0, 159, 227);
-            btnExportdata.FlatAppearance.BorderSize = 0;
-            btnExportdata.FlatStyle = FlatStyle.Flat;
-            btnExportdata.Font = new Font("Segoe UI", 10.8F, FontStyle.Bold);
-            btnExportdata.ForeColor = Color.White;
-            btnExportdata.Location = new Point(1070, 13);
-            btnExportdata.Name = "btnExportdata";
-            btnExportdata.Size = new Size(305, 53);
-            btnExportdata.TabIndex = 2;
-            btnExportdata.Text = "📤  Xuất báo cáo (.xlsx / .csv)";
-            btnExportdata.UseVisualStyleBackColor = false;
+            tboSearch.BackColor = Color.White;
+            tboSearch.BorderStyle = BorderStyle.FixedSingle;
+            tboSearch.Font = new Font("Segoe UI", 10.8F);
+            tboSearch.ForeColor = Color.FromArgb(30, 41, 59);
+            tboSearch.Location = new Point(600, 23);
+            tboSearch.Name = "tboSearch";
+            tboSearch.Size = new Size(145, 31);
+            tboSearch.TabIndex = 5;
+            // 
+            // lbSearch
+            // 
+            lbSearch.AutoSize = true;
+            lbSearch.BackColor = Color.Transparent;
+            lbSearch.Font = new Font("Segoe UI", 10.8F);
+            lbSearch.ForeColor = Color.FromArgb(100, 116, 139);
+            lbSearch.Location = new Point(460, 25);
+            lbSearch.Name = "lbSearch";
+            lbSearch.Size = new Size(142, 25);
+            lbSearch.TabIndex = 4;
+            lbSearch.Text = "Tìm kiếm nhanh:";
             // 
             // btnImportData
             // 
@@ -638,28 +649,19 @@ namespace Test
             btnImportData.Text = "📥  Nhập dữ liệu (.xlsx / .csv)";
             btnImportData.UseVisualStyleBackColor = false;
             // 
-            // lbSearch
+            // btnExportdata
             // 
-            lbSearch.AutoSize = true;
-            lbSearch.BackColor = Color.Transparent;
-            lbSearch.Font = new Font("Segoe UI", 10.8F);
-            lbSearch.ForeColor = Color.FromArgb(100, 116, 139);
-            lbSearch.Location = new Point(460, 25);
-            lbSearch.Name = "lbSearch";
-            lbSearch.Size = new Size(135, 25);
-            lbSearch.TabIndex = 4;
-            lbSearch.Text = "Tìm kiếm nhanh:";
-            // 
-            // tboSearch
-            // 
-            tboSearch.BackColor = Color.White;
-            tboSearch.BorderStyle = BorderStyle.FixedSingle;
-            tboSearch.Font = new Font("Segoe UI", 10.8F);
-            tboSearch.ForeColor = Color.FromArgb(30, 41, 59);
-            tboSearch.Location = new Point(600, 23);
-            tboSearch.Name = "tboSearch";
-            tboSearch.Size = new Size(145, 31);
-            tboSearch.TabIndex = 5;
+            btnExportdata.BackColor = Color.FromArgb(0, 159, 227);
+            btnExportdata.FlatAppearance.BorderSize = 0;
+            btnExportdata.FlatStyle = FlatStyle.Flat;
+            btnExportdata.Font = new Font("Segoe UI", 10.8F, FontStyle.Bold);
+            btnExportdata.ForeColor = Color.White;
+            btnExportdata.Location = new Point(1070, 13);
+            btnExportdata.Name = "btnExportdata";
+            btnExportdata.Size = new Size(305, 53);
+            btnExportdata.TabIndex = 2;
+            btnExportdata.Text = "📤  Xuất báo cáo (.xlsx / .csv)";
+            btnExportdata.UseVisualStyleBackColor = false;
             // 
             // label12
             // 
@@ -746,6 +748,10 @@ namespace Test
             // sqliteConnection1
             // 
             sqliteConnection1.DefaultTimeout = 30;
+            // 
+            // sqliteConnection2
+            // 
+            sqliteConnection2.DefaultTimeout = 30;
             // 
             // Form1
             // 
@@ -834,5 +840,6 @@ namespace Test
         private ToolStripSeparator trayMenuSep;
         private ToolStripMenuItem trayMenuExit;
         private Microsoft.Data.Sqlite.SqliteConnection sqliteConnection1;
+        private Microsoft.Data.Sqlite.SqliteConnection sqliteConnection2;
     }
 }

@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
+using System.Linq;
+using Test.Data;
 
 namespace Test
 {
     /// <summary>
     /// Handles all SQLite database operations for ScaleRecord persistence.
-    /// Uses parameterized queries to ensure security against SQL injection.
+    /// Uses Entity Framework Core for robust data access.
     /// </summary>
     public class DataRepository
     {
@@ -19,27 +20,11 @@ namespace Test
             DatabaseHelper.DbAccessLock.Wait();
             try
             {
-            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
-            {
-                connection.Open();
-                string query = @"
-                    INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester)
-                    VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location, @Tester)";
-
-                using (var command = new SqliteCommand(query, connection))
+                using (var context = new ScaleDbContext())
                 {
-                    command.Parameters.AddWithValue("@Timestamp", record.Timestamp);
-                    command.Parameters.AddWithValue("@Weight", record.Weight.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    command.Parameters.AddWithValue("@Unit", record.Unit ?? "g");
-                    command.Parameters.AddWithValue("@NatCode", string.IsNullOrEmpty(record.NatCode) ? (object)DBNull.Value : record.NatCode);
-                    command.Parameters.AddWithValue("@Batch", string.IsNullOrEmpty(record.Batch) ? (object)DBNull.Value : record.Batch);
-                    command.Parameters.AddWithValue("@SampleName", string.IsNullOrEmpty(record.SampleName) ? (object)DBNull.Value : record.SampleName);
-                    command.Parameters.AddWithValue("@Location", string.IsNullOrEmpty(record.Location) ? (object)DBNull.Value : record.Location);
-                    command.Parameters.AddWithValue("@Tester", string.IsNullOrEmpty(record.Tester) ? (object)DBNull.Value : record.Tester);
-                    
-                    command.ExecuteNonQuery();
+                    context.ScaleRecords.Add(record);
+                    context.SaveChanges();
                 }
-            }
             }
             finally
             {
@@ -55,43 +40,15 @@ namespace Test
             DatabaseHelper.DbAccessLock.Wait();
             try
             {
-            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
-            {
-                connection.Open();
-                using (var transaction = connection.BeginTransaction())
+                using (var context = new ScaleDbContext())
                 {
-                    string query = @"
-                        INSERT INTO ScaleRecords (Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester)
-                        VALUES (@Timestamp, @Weight, @Unit, @NatCode, @Batch, @SampleName, @Location, @Tester)";
-
-                    using (var command = new SqliteCommand(query, connection, transaction))
+                    using (var transaction = context.Database.BeginTransaction())
                     {
-                        command.Parameters.Add("@Timestamp", SqliteType.Text);
-                        command.Parameters.Add("@Weight", SqliteType.Text);
-                        command.Parameters.Add("@Unit", SqliteType.Text);
-                        command.Parameters.Add("@NatCode", SqliteType.Text);
-                        command.Parameters.Add("@Batch", SqliteType.Text);
-                        command.Parameters.Add("@SampleName", SqliteType.Text);
-                        command.Parameters.Add("@Location", SqliteType.Text);
-                        command.Parameters.Add("@Tester", SqliteType.Text);
-
-                        foreach (var record in records)
-                        {
-                            command.Parameters["@Timestamp"].Value = record.Timestamp;
-                            command.Parameters["@Weight"].Value = record.Weight.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                            command.Parameters["@Unit"].Value = record.Unit ?? "g";
-                            command.Parameters["@NatCode"].Value = string.IsNullOrEmpty(record.NatCode) ? (object)DBNull.Value : record.NatCode;
-                            command.Parameters["@Batch"].Value = string.IsNullOrEmpty(record.Batch) ? (object)DBNull.Value : record.Batch;
-                            command.Parameters["@SampleName"].Value = string.IsNullOrEmpty(record.SampleName) ? (object)DBNull.Value : record.SampleName;
-                            command.Parameters["@Location"].Value = string.IsNullOrEmpty(record.Location) ? (object)DBNull.Value : record.Location;
-                            command.Parameters["@Tester"].Value = string.IsNullOrEmpty(record.Tester) ? (object)DBNull.Value : record.Tester;
-
-                            command.ExecuteNonQuery();
-                        }
+                        context.ScaleRecords.AddRange(records);
+                        context.SaveChanges();
+                        transaction.Commit();
                     }
-                    transaction.Commit();
                 }
-            }
             }
             finally
             {
@@ -99,59 +56,35 @@ namespace Test
             }
         }
 
+        /// <summary>
+        /// Gets all scale measurements from the database.
+        /// </summary>
         public List<ScaleRecord> GetAll()
         {
             DatabaseHelper.DbAccessLock.Wait();
             try
             {
-            var records = new List<ScaleRecord>();
-            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
-            {
-                connection.Open();
-                string query = "SELECT Id, Timestamp, Weight, Unit, NatCode, Batch, SampleName, Location, Tester FROM ScaleRecords ORDER BY Timestamp DESC";
-
-                using (var command = new SqliteCommand(query, connection))
-                using (var reader = command.ExecuteReader())
+                using (var context = new ScaleDbContext())
                 {
-                    while (reader.Read())
-                    {
-                        records.Add(new ScaleRecord
-                        {
-                            Id = reader.GetInt64(0),
-                            Timestamp = reader.GetDateTime(1),
-                            Weight = decimal.Parse(reader.GetString(2), System.Globalization.CultureInfo.InvariantCulture),
-                            Unit = reader.GetString(3),
-                            NatCode = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
-                            Batch = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
-                            SampleName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
-                            Location = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
-                            Tester = reader.IsDBNull(8) ? string.Empty : reader.GetString(8)
-                        });
-                    }
+                    return context.ScaleRecords.OrderByDescending(r => r.Timestamp).ToList();
                 }
-            }
-            return records;
             }
             finally
             {
                 DatabaseHelper.DbAccessLock.Release();
             }
         }
+
         public int GetTodayCount()
         {
             DatabaseHelper.DbAccessLock.Wait();
             try
             {
-            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
-            {
-                connection.Open();
-                string query = "SELECT COUNT(*) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now', 'localtime')";
-                using (var command = new SqliteCommand(query, connection))
+                using (var context = new ScaleDbContext())
                 {
-                    var result = command.ExecuteScalar();
-                    return result == null ? 0 : (int)(long)result;
+                    var today = DateTime.Now.Date;
+                    return context.ScaleRecords.Count(r => r.Timestamp.Date == today);
                 }
-            }
             }
             finally
             {
@@ -164,21 +97,17 @@ namespace Test
             DatabaseHelper.DbAccessLock.Wait();
             try
             {
-            using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
-            {
-                connection.Open();
-                string query = string.IsNullOrEmpty(batch)
-                    ? "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE DATE(Timestamp) = DATE('now', 'localtime')"
-                    : "SELECT COALESCE(SUM(Weight), 0) FROM ScaleRecords WHERE Batch = @Batch AND DATE(Timestamp) = DATE('now', 'localtime')";
-
-                using (var command = new SqliteCommand(query, connection))
+                using (var context = new ScaleDbContext())
                 {
+                    var today = DateTime.Now.Date;
+                    IQueryable<ScaleRecord> query = context.ScaleRecords.Where(r => r.Timestamp.Date == today);
+                    
                     if (!string.IsNullOrEmpty(batch))
-                        command.Parameters.AddWithValue("@Batch", batch);
+                    {
+                        query = query.Where(r => r.Batch == batch);
+                    }
 
-                    var result = command.ExecuteScalar();
-                    return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result);
-                }
+                    return query.Sum(r => r.Weight);
                 }
             }
             catch (Exception ex)
@@ -197,20 +126,59 @@ namespace Test
             DatabaseHelper.DbAccessLock.Wait();
             try
             {
-                using (var connection = new SqliteConnection(DatabaseHelper.GetConnectionString()))
+                using (var context = new ScaleDbContext())
                 {
-                    connection.Open();
-                    string query = "SELECT COUNT(*) FROM ScaleRecords WHERE IsSynced = 0";
-                    using (var command = new SqliteCommand(query, connection))
-                    {
-                        var result = command.ExecuteScalar();
-                        return result == null ? 0 : (int)(long)result;
-                    }
+                    return context.ScaleRecords.Count(r => !r.IsSynced);
                 }
             }
             catch
             {
                 return 0;
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Xóa hàng loạt bản ghi theo danh sách ID.
+        /// </summary>
+        public void DeleteBatch(IEnumerable<long> ids)
+        {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
+                using (var context = new ScaleDbContext())
+                {
+                    var recordsToDelete = context.ScaleRecords.Where(r => ids.Contains(r.Id)).ToList();
+                    if (recordsToDelete.Any())
+                    {
+                        context.ScaleRecords.RemoveRange(recordsToDelete);
+                        context.SaveChanges();
+                    }
+                }
+            }
+            finally
+            {
+                DatabaseHelper.DbAccessLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật thông tin của một bản ghi đã có.
+        /// </summary>
+        public void Update(ScaleRecord record)
+        {
+            DatabaseHelper.DbAccessLock.Wait();
+            try
+            {
+                using (var context = new ScaleDbContext())
+                {
+                    // Attach and update to avoid loading from DB first
+                    context.ScaleRecords.Update(record);
+                    context.SaveChanges();
+                }
             }
             finally
             {
