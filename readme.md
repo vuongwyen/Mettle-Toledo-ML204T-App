@@ -145,6 +145,11 @@ Khi bàn giao, các kỹ sư muốn nâng cấp hệ thống vui lòng tuân th�
 
 ---
 
+## ✍️ Tác giả (Authors)
+- **Truong, Quyen/tSH PHp** - Thiết kế và phát triển kiến trúc hệ thống
+
+---
+
 ## 📄 License
 Tài liệu nội bộ & Bàn giao độc quyền - Do hệ thống thiết kế riêng cho Tesa Lab.
 ```
