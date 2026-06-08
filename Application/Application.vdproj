@@ -15,7 +15,19 @@
     {
         "Entry"
         {
-        "MsmKey" = "8:_CF8A4D89A734412F99CA5F60FCE139CC"
+        "MsmKey" = "8:_6E03D0ABBEA749CAACB78C63109F3079"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_7C3D90471672453AAF4C75067B81B539"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D0D85A08746F41E18608C65C7F15F1C9"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -122,6 +134,46 @@
         }
         "File"
         {
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6E03D0ABBEA749CAACB78C63109F3079"
+            {
+            "SourcePath" = "8:..\\Test\\bin\\Debug\\net10.0-windows\\runtimes\\win-x64\\native\\e_sqlcipher.dll"
+            "TargetName" = "8:e_sqlcipher.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_5F9171994AC04AC79BA99268249B03A6"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7C3D90471672453AAF4C75067B81B539"
+            {
+            "SourcePath" = "8:..\\Test\\bin\\Debug\\net10.0-windows\\runtimes\\win-x64\\native\\e_sqlcipher.dll"
+            "TargetName" = "8:e_sqlcipher.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_67B6800FF83349288024A7D1ACC42574"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_F120249D105843918B46D72BFBEC53CE"
             {
             "SourcePath" = "8:D:\\Downloads\\tesa.ico"
@@ -169,6 +221,39 @@
             "Property" = "8:TARGETDIR"
                 "Folders"
                 {
+                    "{9EF0B969-E518-4E46-987F-47570745A589}:_5E39A1A95F7644F7990A96EA95462DE4"
+                    {
+                    "Name" = "8:tesa Scale Data Collection"
+                    "AlwaysCreate" = "11:FALSE"
+                    "Condition" = "8:"
+                    "Transitive" = "11:FALSE"
+                    "Property" = "8:_021F8EA080F744AAAFDCE04AFB84F16D"
+                        "Folders"
+                        {
+                            "{9EF0B969-E518-4E46-987F-47570745A589}:_6B47F6FB532541D38C7A31AA99DD6E1A"
+                            {
+                            "Name" = "8:win-x64"
+                            "AlwaysCreate" = "11:FALSE"
+                            "Condition" = "8:"
+                            "Transitive" = "11:FALSE"
+                            "Property" = "8:_9B4ED06BC00543D4923660AE2050E80F"
+                                "Folders"
+                                {
+                                    "{9EF0B969-E518-4E46-987F-47570745A589}:_67B6800FF83349288024A7D1ACC42574"
+                                    {
+                                    "Name" = "8:native"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "Property" = "8:_30E7E553EF8D4E2196170BC76A347C8B"
+                                        "Folders"
+                                        {
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             "{1525181F-901A-416C-8A58-119130FE478E}:_8C2CF1F5AEAC4BAAB838060E513A1435"
@@ -198,15 +283,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:tesa PHp Scale Data Collection"
-        "ProductCode" = "8:{B455C3AE-B5A3-40B5-8D47-3EB5FC4C1C84}"
-        "PackageCode" = "8:{E5D08EDB-E77C-462C-ADAF-4B5B184B95D1}"
+        "ProductCode" = "8:{F5A35A69-3F15-4614-8532-438F0A61A891}"
+        "PackageCode" = "8:{0D100414-6B4D-4DC2-8C4C-96C2DEBC590D}"
         "UpgradeCode" = "8:{3D06B2CD-AE17-4440-BBA4-9B84AD63493E}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:FALSE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.2.0"
+        "ProductVersion" = "8:1.2.2"
         "Manufacturer" = "8:Default Company Name"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -319,29 +404,29 @@
         }
         "Shortcut"
         {
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_33579568436F4B938CA20559DC7F1B2D"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_2F9D96A50D49476B9A379DD2A9098D22"
             {
-            "Name" = "8:tesa PHp Scale DataCollection"
+            "Name" = "8:tesa Scale Data Collection"
             "Arguments" = "8:"
             "Description" = "8:"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
             "Transitive" = "11:FALSE"
-            "Target" = "8:_CF8A4D89A734412F99CA5F60FCE139CC"
+            "Target" = "8:_D0D85A08746F41E18608C65C7F15F1C9"
             "Folder" = "8:_4DBFBC2BAA7748638D821C592566B8A6"
             "WorkingFolder" = "8:_5F9171994AC04AC79BA99268249B03A6"
             "Icon" = "8:_F120249D105843918B46D72BFBEC53CE"
             "Feature" = "8:"
             }
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_5E8C39B42CCF48FB8D7B5D265988C4FE"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_D14A41A4E3624D36BFDDF2E7EF8B0E25"
             {
-            "Name" = "8:tesa PHp Scale DataCollection"
+            "Name" = "8:tesa Scale Data Collection"
             "Arguments" = "8:"
             "Description" = "8:"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
             "Transitive" = "11:FALSE"
-            "Target" = "8:_CF8A4D89A734412F99CA5F60FCE139CC"
+            "Target" = "8:_D0D85A08746F41E18608C65C7F15F1C9"
             "Folder" = "8:_8C2CF1F5AEAC4BAAB838060E513A1435"
             "WorkingFolder" = "8:_5F9171994AC04AC79BA99268249B03A6"
             "Icon" = "8:_F120249D105843918B46D72BFBEC53CE"
@@ -746,7 +831,7 @@
         }
         "ProjectOutput"
         {
-            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_CF8A4D89A734412F99CA5F60FCE139CC"
+            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_D0D85A08746F41E18608C65C7F15F1C9"
             {
             "SourcePath" = "8:..\\Test\\obj\\Release\\net10.0-windows\\apphost.exe"
             "TargetName" = "8:"

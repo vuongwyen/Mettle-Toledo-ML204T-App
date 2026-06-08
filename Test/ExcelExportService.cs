@@ -11,7 +11,7 @@ namespace Test
             var ws = wb.Worksheets.Add("Scale Data");
 
             // Header row
-            string[] headers = { "ID", "Thời gian", "Khối lượng", "Đơn vị", "Mã NAT", "Lô hàng", "Tên mẫu", "Vị trí" };
+            string[] headers = { "ID", "Thời gian", "Khối lượng", "Đơn vị", "Mã NAT", "Lô hàng", "Tên mẫu", "Vị trí", "Người đo" };
             for (int col = 1; col <= headers.Length; col++)
             {
                 var cell = ws.Cell(1, col);
@@ -38,6 +38,7 @@ namespace Test
                 ws.Cell(row, 6).Value = r.Batch;
                 ws.Cell(row, 7).Value = r.SampleName;
                 ws.Cell(row, 8).Value = r.Location;
+                ws.Cell(row, 9).Value = r.Tester;
 
                 // Alternating row color
                 if (i % 2 == 1)

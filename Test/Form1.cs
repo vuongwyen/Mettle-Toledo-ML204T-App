@@ -4,6 +4,9 @@ using System.Windows.Forms;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
+using System.Data;
+using DataGridViewAutoFilter;
+using Test.Helpers;
 
 namespace Test
 {
@@ -31,12 +34,14 @@ namespace Test
         private System.Collections.Generic.Dictionary<Control, float> _originalFonts = new System.Collections.Generic.Dictionary<Control, float>();
         private const int MaxChartPoints = 300;
 
+
         // [R-01] Producer-Consumer: Background thread enqueues, WinForms Timer dequeues in batch.
         // ConcurrentQueue<T> là lock-free — an toàn cho write từ background và read từ UI thread.
         private readonly System.Collections.Concurrent.ConcurrentQueue<ScaleData> _dataQueue
             = new System.Collections.Concurrent.ConcurrentQueue<ScaleData>();
         private System.Windows.Forms.Timer _uiTimer = null!;
         private System.Windows.Forms.Timer _autoBackupTimer = null!;
+        private BindingSource _bindingSource = new BindingSource();
 
         // Roles & Auth
         private bool _isAdmin = false;
@@ -127,6 +132,7 @@ namespace Test
 
             this.FormClosing += Form1_FormClosing;
 
+            InitializeDataGridView();
             InitializeChart();
             LoadDataToGrid();
             UpdateStats();
@@ -1085,24 +1091,30 @@ namespace Test
         // --- Nút Ẩn: Dùng để Test đẩy dữ liệu mà không cần Cân thật ---
         private void btnTestFakeData_Click(object? sender, EventArgs e)
         {
-            var record = new ScaleRecord
+            var r = new Random();
+            var records = new System.Collections.Generic.List<ScaleRecord>();
+            for (int i = 1; i <= 5; i++)
             {
-                Timestamp = DateTime.Now,
-                Weight = (decimal)new Random().Next(10, 500) / 10m,
-                Unit = "kg",
-                NatCode = tboNat.Text.Trim() == "" ? "TEST_NAT" : tboNat.Text.Trim(),
-                Batch = tboBatch.Text.Trim() == "" ? "TEST_BATCH" : tboBatch.Text.Trim(),
-                SampleName = "Cân Ảo Test",
-                Location = "Bàn Test 1",
-                Tester = "Admin Test"
-            };
-
-            _ = _dbService.SaveRecordAsync(record);
-            _repository.Insert(record);
+                var record = new ScaleRecord
+                {
+                    Timestamp = DateTime.Now.AddMinutes(-i * 5),
+                    Weight = (decimal)r.Next(100, 5000) / 10m,
+                    Unit = "g",
+                    NatCode = tboNat.Text.Trim() == "" ? $"NAT-{r.Next(1000, 9999)}" : tboNat.Text.Trim(),
+                    Batch = tboBatch.Text.Trim() == "" ? $"BATCH-{DateTime.Now:MMdd}-{i}" : tboBatch.Text.Trim(),
+                    SampleName = $"Mẫu kiểm thử {i}",
+                    Location = "Bàn Test 1",
+                    Tester = "Admin Test"
+                };
+                records.Add(record);
+                _ = _dbService.SaveRecordAsync(record); // Sync to server if possible
+            }
+            
+            _repository.InsertBatch(records);
 
             System.Media.SystemSounds.Beep.Play();
             LoadDataToGrid();
-            MessageBox.Show($"Đã tạo và đẩy 1 bản ghi Cân Ảo ({record.Weight} kg) lên Server!", "Test Sync", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show($"Đã tạo và lưu thành công 5 dòng dữ liệu mẫu!", "Tạo dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void LoadDataToGrid()
@@ -1110,7 +1122,14 @@ namespace Test
             try
             {
                 _allRecords = _repository.GetAll();
-                ApplyFilter();
+                var dt = _allRecords.ToDataTable();
+                _bindingSource.DataSource = dt;
+                
+                if (dgvWeightsheet.DataSource == null)
+                {
+                    dgvWeightsheet.DataSource = _bindingSource;
+                }
+                
                 UpdateStats();
             }
             catch (Exception ex)
@@ -1119,60 +1138,44 @@ namespace Test
             }
         }
 
-        // Add custom textboxes for column filters
-        private TextBox _txtFilterNat = new TextBox();
-        private TextBox _txtFilterBatch = new TextBox();
-        private TextBox _txtFilterSample = new TextBox();
-        private TextBox _txtFilterLocation = new TextBox();
-
-        private void ApplyFilter()
-        {
-            string keyword = tboSearch.Text.Trim().ToLower();
-            string nat = _txtFilterNat.Text.Trim().ToLower();
-            string batch = _txtFilterBatch.Text.Trim().ToLower();
-            string sample = _txtFilterSample.Text.Trim().ToLower();
-            string location = _txtFilterLocation.Text.Trim().ToLower();
-
-            var filtered = new System.ComponentModel.BindingList<ScaleRecord>();
-            foreach (var record in _allRecords)
-            {
-                bool matchKeyword = string.IsNullOrEmpty(keyword) ||
-                    ((record.NatCode != null && record.NatCode.ToLower().Contains(keyword)) ||
-                     (record.Batch != null && record.Batch.ToLower().Contains(keyword)) ||
-                     (record.SampleName != null && record.SampleName.ToLower().Contains(keyword)) ||
-                     (record.Location != null && record.Location.ToLower().Contains(keyword)) ||
-                     (record.Unit != null && record.Unit.ToLower().Contains(keyword)));
-
-                bool matchNat = string.IsNullOrEmpty(nat) || (record.NatCode != null && record.NatCode.ToLower().Contains(nat));
-                bool matchBatch = string.IsNullOrEmpty(batch) || (record.Batch != null && record.Batch.ToLower().Contains(batch));
-                bool matchSample = string.IsNullOrEmpty(sample) || (record.SampleName != null && record.SampleName.ToLower().Contains(sample));
-                bool matchLocation = string.IsNullOrEmpty(location) || (record.Location != null && record.Location.ToLower().Contains(location));
-
-                if (matchKeyword && matchNat && matchBatch && matchSample && matchLocation)
-                {
-                    filtered.Add(record);
-                }
-            }
-
-            dgvWeightsheet.DataSource = filtered;
-        }
-
-        private void Filter_TextChanged(object? sender, EventArgs e)
-        {
-            ApplyFilter();
-        }
-
         private void tboSearch_TextChanged(object? sender, EventArgs e)
         {
-            ApplyFilter();
+            string keyword = tboSearch.Text.Trim().Replace("'", "''");
+            if (string.IsNullOrEmpty(keyword))
+            {
+                _bindingSource.Filter = null;
+            }
+            else
+            {
+                _bindingSource.Filter = $"Convert(Id, 'System.String') LIKE '%{keyword}%' OR NatCode LIKE '%{keyword}%' OR Batch LIKE '%{keyword}%' OR SampleName LIKE '%{keyword}%' OR Location LIKE '%{keyword}%' OR Unit LIKE '%{keyword}%'";
+            }
         }
 
         private void btnExportdata_Click(object? sender, EventArgs e)
         {
             try
             {
-                var dataSource = dgvWeightsheet.DataSource as System.ComponentModel.BindingList<ScaleRecord>;
-                var data = dataSource != null ? new System.Collections.Generic.List<ScaleRecord>(dataSource) : new System.Collections.Generic.List<ScaleRecord>();
+                var data = new System.Collections.Generic.List<ScaleRecord>();
+                foreach (DataGridViewRow row in dgvWeightsheet.Rows)
+                {
+                    if (row.DataBoundItem is DataRowView drv)
+                    {
+                        data.Add(new ScaleRecord
+                        {
+                            Id = Convert.ToInt64(drv["Id"]),
+                            Timestamp = Convert.ToDateTime(drv["Timestamp"]),
+                            Weight = Convert.ToDecimal(drv["Weight"]),
+                            Unit = drv["Unit"]?.ToString() ?? "g",
+                            NatCode = drv["NatCode"] == DBNull.Value ? null : drv["NatCode"].ToString(),
+                            Batch = drv["Batch"] == DBNull.Value ? null : drv["Batch"].ToString(),
+                            SampleName = drv["SampleName"] == DBNull.Value ? null : drv["SampleName"].ToString(),
+                            Location = drv["Location"] == DBNull.Value ? null : drv["Location"].ToString(),
+                            Tester = drv["Tester"] == DBNull.Value ? null : drv["Tester"].ToString(),
+                            IsSynced = Convert.ToBoolean(drv["IsSynced"]),
+                            IsSelected = drv["IsSelected"] != DBNull.Value && Convert.ToBoolean(drv["IsSelected"])
+                        });
+                    }
+                }
 
                 if (data.Count == 0)
                 {
@@ -1430,7 +1433,6 @@ namespace Test
             _btnLogin.BringToFront();
 
             UpdateRoleUI();
-            InitializeDataGridView();
             // Server status label — hiển thị ở góc dưới bên trái, luôn thấy dù là User hay Admin
             _lblServerStatus = new Label
             {
@@ -1465,10 +1467,18 @@ namespace Test
             {
                 foreach (DataGridViewColumn col in dgvWeightsheet.Columns)
                 {
-                    if (col.Name == "Id" || col.Name == "Timestamp" || col.Name == "Weight" || col.Name == "Unit")
+                    if (col.Name == "Id" || col.Name == "Timestamp" || col.Name == "Weight" || col.Name == "Unit" || col.Name == "IsSynced" || col.Name == "IsSelected")
                     {
                         col.ReadOnly = true;
                         col.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240);
+                    }
+                    else
+                    {
+                        // Enable AutoFilter for editable text columns
+                        if (!(col.HeaderCell is DataGridViewAutoFilterColumnHeaderCell))
+                        {
+                            col.HeaderCell = new DataGridViewAutoFilterColumnHeaderCell(col.HeaderCell);
+                        }
                     }
                 }
 
@@ -1489,11 +1499,16 @@ namespace Test
                 var idsToDelete = new System.Collections.Generic.List<long>();
                 foreach (DataGridViewRow row in dgvWeightsheet.Rows)
                 {
-                    if (row.DataBoundItem is ScaleRecord record && (record.IsSelected || row.Selected))
+                    if (row.DataBoundItem is DataRowView drv)
                     {
-                        if (!idsToDelete.Contains(record.Id))
+                        var isSelected = drv["IsSelected"] != DBNull.Value && Convert.ToBoolean(drv["IsSelected"]);
+                        if (isSelected || row.Selected)
                         {
-                            idsToDelete.Add(record.Id);
+                            var id = Convert.ToInt64(drv["Id"]);
+                            if (!idsToDelete.Contains(id))
+                            {
+                                idsToDelete.Add(id);
+                            }
                         }
                     }
                 }
@@ -1521,14 +1536,15 @@ namespace Test
             {
                 Text = "🗑 Xóa mục đã chọn",
                 Size = new Size(180, 28),
+                Location = new Point(17, 80),
                 BackColor = Color.White,
                 ForeColor = Color.Red,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Margin = new Padding(30, 2, 0, 0)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnBulkDelete.FlatAppearance.BorderColor = Color.Red;
             btnBulkDelete.Click += (s, e) => delItem.PerformClick();
+            tpDatasheet.Controls.Add(btnBulkDelete);
 
             // Auto-save inline edits
             dgvWeightsheet.CellValueChanged += (s, e) =>
@@ -1536,45 +1552,30 @@ namespace Test
                 if (e.RowIndex >= 0)
                 {
                     var row = dgvWeightsheet.Rows[e.RowIndex];
-                    if (row.DataBoundItem is ScaleRecord record)
+                    if (row.DataBoundItem is DataRowView drv)
                     {
+                        var record = new ScaleRecord
+                        {
+                            Id = Convert.ToInt64(drv["Id"]),
+                            Timestamp = Convert.ToDateTime(drv["Timestamp"]),
+                            Weight = Convert.ToDecimal(drv["Weight"]),
+                            Unit = drv["Unit"]?.ToString() ?? "g",
+                            NatCode = drv["NatCode"] == DBNull.Value ? null : drv["NatCode"].ToString(),
+                            Batch = drv["Batch"] == DBNull.Value ? null : drv["Batch"].ToString(),
+                            SampleName = drv["SampleName"] == DBNull.Value ? null : drv["SampleName"].ToString(),
+                            Location = drv["Location"] == DBNull.Value ? null : drv["Location"].ToString(),
+                            Tester = drv["Tester"] == DBNull.Value ? null : drv["Tester"].ToString(),
+                            IsSynced = Convert.ToBoolean(drv["IsSynced"]),
+                            IsSelected = drv["IsSelected"] != DBNull.Value && Convert.ToBoolean(drv["IsSelected"])
+                        };
                         _repository.Update(record);
                     }
                 }
             };
 
-            // Add Filter UI for columns
-            var pnlFilters = new FlowLayoutPanel
-            {
-                Location = new Point(17, 80),
-                Size = new Size(1350, 35),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
-                BackColor = Color.Transparent
-            };
-
-            Label lblFNat = new Label { Text = "Lọc Nat:", AutoSize = true, Margin = new Padding(0, 8, 5, 0) };
-            _txtFilterNat.Size = new Size(120, 25);
-            _txtFilterNat.TextChanged += Filter_TextChanged;
-
-            Label lblFBatch = new Label { Text = "Batch:", AutoSize = true, Margin = new Padding(15, 8, 5, 0) };
-            _txtFilterBatch.Size = new Size(120, 25);
-            _txtFilterBatch.TextChanged += Filter_TextChanged;
-
-            Label lblFSample = new Label { Text = "Sample:", AutoSize = true, Margin = new Padding(15, 8, 5, 0) };
-            _txtFilterSample.Size = new Size(120, 25);
-            _txtFilterSample.TextChanged += Filter_TextChanged;
-
-            Label lblFLoc = new Label { Text = "Location:", AutoSize = true, Margin = new Padding(15, 8, 5, 0) };
-            _txtFilterLocation.Size = new Size(120, 25);
-            _txtFilterLocation.TextChanged += Filter_TextChanged;
-
-            pnlFilters.Controls.AddRange(new Control[] { lblFNat, _txtFilterNat, lblFBatch, _txtFilterBatch, lblFSample, _txtFilterSample, lblFLoc, _txtFilterLocation, btnBulkDelete });
-
-            // Adjust DataGridView location to make room
+            // Adjust DataGridView location
             dgvWeightsheet.Location = new Point(17, 125);
-            dgvWeightsheet.Size = new Size(1358, 650); // Reduce height to accommodate the new filter row
-            tpDatasheet.Controls.Add(pnlFilters);
+            dgvWeightsheet.Size = new Size(1358, 650);
         }
 
         private async System.Threading.Tasks.Task PingServerStatusAsync()
