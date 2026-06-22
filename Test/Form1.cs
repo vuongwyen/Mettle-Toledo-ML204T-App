@@ -77,10 +77,14 @@ namespace Test
         {
             WaitingForZero,
             ReadyToWeigh,
-            WeightCaptured
+            WeightCaptured,
+            Cooldown           // [FIX-DEDUP] Chờ cân về 0 thật sự trước khi cho phép chốt lần tiếp
         }
         private AutoPollingState _autoPollingState = AutoPollingState.WaitingForZero;
         private const decimal ZeroThreshold = 0.05m;
+        private int _zeroCooldownCount = 0;
+        // Số lần đọc liên tiếp <= ZeroThreshold cần có để xác nhận cân đã được lấy mẫu ra (~1 giây với polling 100ms)
+        private const int ZeroCooldownRequired = 10;
 
         public Form1()
         {
@@ -458,24 +462,78 @@ namespace Test
 
         private void ProcessAutoPolling(ScaleData data)
         {
-            // Nếu khối lượng <= ZeroThreshold (kể cả chưa ổn định), ta coi như cân đã được làm trống và sẵn sàng cho lần cân tiếp theo.
-            if (data.Weight <= ZeroThreshold)
+            // [FIX-DEDUP] State Machine chống lặp dữ liệu khi cân bị nhảy số sau khi đã chốt.
+            // Luồng: ReadyToWeigh → (stable & >Zero) → WeightCaptured → Cooldown → (về 0 N lần liên tiếp) → ReadyToWeigh
+            switch (_autoPollingState)
             {
-                _autoPollingState = AutoPollingState.ReadyToWeigh;
-                return;
-            }
+                case AutoPollingState.WaitingForZero:
+                case AutoPollingState.ReadyToWeigh:
+                    // Sẵn sàng cân: chỉ chốt khi cân ổn định và có khối lượng thực
+                    if (data.Weight > ZeroThreshold && data.IsStable)
+                    {
+                        _ = SaveCurrentWeightAsync(true);
+                        _autoPollingState = AutoPollingState.WeightCaptured;
+                    }
+                    break;
 
-            // Nếu đang ở trạng thái sẵn sàng, khối lượng lớn hơn ZeroThreshold và đã ổn định -> Chốt số
-            if (_autoPollingState == AutoPollingState.ReadyToWeigh && data.IsStable)
-            {
-                SaveCurrentWeight(true);
-                _autoPollingState = AutoPollingState.WeightCaptured;
+                case AutoPollingState.WeightCaptured:
+                    // Đã chốt xong → bắt buộc vào Cooldown, chờ cân được làm trống thật sự.
+                    // Không cho phép reset về ReadyToWeigh ở đây dù cân có nhảy số.
+                    _zeroCooldownCount = 0;
+                    _autoPollingState = AutoPollingState.Cooldown;
+                    break;
+
+                case AutoPollingState.Cooldown:
+                    // Chỉ đếm khi Weight thực sự về 0 (dưới ngưỡng)
+                    if (data.Weight <= ZeroThreshold)
+                        _zeroCooldownCount++;
+                    else
+                        _zeroCooldownCount = 0; // Cân nhảy lên lại → reset bộ đếm, tiếp tục chờ
+
+                    // Đủ N lần liên tiếp → cân đã thực sự trống, cho phép cân mẫu mới
+                    if (_zeroCooldownCount >= ZeroCooldownRequired)
+                    {
+                        _zeroCooldownCount = 0;
+                        _autoPollingState = AutoPollingState.ReadyToWeigh;
+                    }
+                    break;
             }
         }
 
-        private void btnPolling_Click(object? sender, EventArgs e)
+        private async void btnPolling_Click(object? sender, EventArgs e)
         {
-            SaveCurrentWeight(false);
+            // [FIX-RACE] Chỉ cho phép lưu thủ công khi State Machine đang ở ReadyToWeigh/WaitingForZero.
+            // Ngăn xung đột: nếu AutoPolling vừa chốt xong (WeightCaptured/Cooldown),
+            // bấm thủ công sẽ không lưu trùng dữ liệu mẫu vừa rồi.
+            if (_autoPollingState != AutoPollingState.ReadyToWeigh &&
+                _autoPollingState != AutoPollingState.WaitingForZero)
+            {
+                MessageBox.Show(
+                    "Cân đang trong quá trình xử lý. Vui lòng chờ cân về 0 trước khi chốt lần tiếp theo.",
+                    "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            btnPolling.Enabled = false;
+            string originalText = btnPolling.Text;
+            btnPolling.Text = "Đang lưu...";
+
+            // Chiếm State ngay lập tức để AutoPolling không thể chen vào trong lúc await
+            _autoPollingState = AutoPollingState.WeightCaptured;
+
+            try
+            {
+                await SaveCurrentWeightAsync(false);
+            }
+            finally
+            {
+                // Vào Cooldown — bắt buộc cân về 0 thật sự trước khi cho phép chốt lần tiếp
+                _zeroCooldownCount = 0;
+                _autoPollingState = AutoPollingState.Cooldown;
+
+                btnPolling.Text = originalText;
+                btnPolling.Enabled = true;
+            }
         }
 
         private void Tbo_KeyDown(object? sender, KeyEventArgs e)
@@ -1033,7 +1091,7 @@ namespace Test
             // Removed tcDashboard.TabPages.Add(_tpSettings) here since UpdateRoleUI manages it.
         }
 
-        private void SaveCurrentWeight(bool isAuto)
+        private async Task SaveCurrentWeightAsync(bool isAuto)
         {
             if (!_connectionManager.IsConnected)
             {
@@ -1067,10 +1125,12 @@ namespace Test
                     Tester = tboTester.Text.Trim()
                 };
 
-                // Lưu dữ liệu qua facade đồng bộ mạng
-                _ = _dbService.SaveRecordAsync(record);
-                // Vẫn lưu local qua _repository.Insert cho UI grid
-                _repository.Insert(record);
+                // [FIX-DOUBLE-WRITE] Trước đây ghi 2 lần:
+                //   1. _repository.Insert (EF Core → SQLite)
+                //   2. _dbService.SaveRecordAsync (raw SQLite) — LÀM TRÙNG DỮ LIỆU
+                // Nay chỉ dùng _dbService làm Single Source of Truth.
+                // _dbService sẽ tự quyết định online (push server + lưu local) hay offline (lưu local pending).
+                await _dbService.SaveRecordAsync(record);
 
                 // Audio feedback
                 System.Media.SystemSounds.Beep.Play();
