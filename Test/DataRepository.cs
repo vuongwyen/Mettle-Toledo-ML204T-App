@@ -66,8 +66,29 @@ namespace Test
             {
                 using (var context = new ScaleDbContext())
                 {
-                    return context.ScaleRecords.OrderByDescending(r => r.Timestamp).ToList();
+                    // [FIX-NULLREF] DatabaseService ghi bằng raw SQL có thể để NULL cho các cột TEXT.
+                    // EF Core sẽ ném NullReferenceException khi materialize vào property string không nullable.
+                    // Dùng AsEnumerable() để post-process trên .NET thay vì SQL, rồi normalize null → empty.
+                    return context.ScaleRecords
+                        .OrderByDescending(r => r.Timestamp)
+                        .AsEnumerable()
+                        .Select(r =>
+                        {
+                            r.Unit       = r.Unit       ?? string.Empty;
+                            r.NatCode    = r.NatCode    ?? string.Empty;
+                            r.Batch      = r.Batch      ?? string.Empty;
+                            r.SampleName = r.SampleName ?? string.Empty;
+                            r.Location   = r.Location   ?? string.Empty;
+                            r.Tester     = r.Tester     ?? string.Empty;
+                            return r;
+                        })
+                        .ToList();
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataRepository.GetAll] Failed: {ex.Message}");
+                return new List<ScaleRecord>();
             }
             finally
             {

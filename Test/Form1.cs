@@ -107,6 +107,13 @@ namespace Test
             btnImportData.Click += btnImportData_Click;
             tboSearch.TextChanged += tboSearch_TextChanged;
 
+            // [ENHANCE] Vô hiệu hóa nút Lưu thủ công khi bật chế độ Lưu tự động
+            chkAutoPolling.CheckedChanged += (s, e) =>
+            {
+                btnPolling.Enabled = !chkAutoPolling.Checked;
+            };
+            btnPolling.Enabled = !chkAutoPolling.Checked; // Khởi tạo trạng thái ban đầu
+
             tboNat.KeyDown += Tbo_KeyDown;
             tboBatch.KeyDown += Tbo_KeyDown;
             tboSamplename.KeyDown += Tbo_KeyDown;
@@ -320,11 +327,10 @@ namespace Test
             if (hasChartData)
                 _plotModel.InvalidatePlot(true);
 
-            // Auto-Polling: xử lý tuần tự để giữ đúng state machine zero-detect
-            if (chkAutoPolling.Checked)
+            // State Machine: Xử lý tuần tự để giữ đúng state zero-detect cho cả Auto và Manual
+            foreach (var data in batch)
             {
-                foreach (var data in batch)
-                    if (!data.IsError) ProcessAutoPolling(data);
+                if (!data.IsError) ProcessAutoPolling(data);
             }
         }
 
@@ -471,8 +477,11 @@ namespace Test
                     // Sẵn sàng cân: chỉ chốt khi cân ổn định và có khối lượng thực
                     if (data.Weight > ZeroThreshold && data.IsStable)
                     {
-                        _ = SaveCurrentWeightAsync(true);
-                        _autoPollingState = AutoPollingState.WeightCaptured;
+                        if (chkAutoPolling.Checked)
+                        {
+                            _ = SaveCurrentWeightAsync(true);
+                            _autoPollingState = AutoPollingState.WeightCaptured;
+                        }
                     }
                     break;
 
@@ -532,7 +541,7 @@ namespace Test
                 _autoPollingState = AutoPollingState.Cooldown;
 
                 btnPolling.Text = originalText;
-                btnPolling.Enabled = true;
+                btnPolling.Enabled = !chkAutoPolling.Checked;
             }
         }
 
@@ -1144,45 +1153,82 @@ namespace Test
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Lỗi khi lưu dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (isAuto)
+                {
+                    // [FIX-BUG1] Auto-save thất bại: rollback State về ReadyToWeigh để mẫu không bị mất.
+                    // Không show MessageBox vì có thể đang gọi từ background context.
+                    // Ghi lỗi vào Error Log để người dùng có thể xem và biết có sự cố.
+                    _autoPollingState = AutoPollingState.ReadyToWeigh;
+                    _zeroCooldownCount = 0;
+                    LogError($"[AutoSave] Lưu tự động thất bại, đã rollback về ReadyToWeigh. Lỗi: {ex.Message}");
+                }
+                else
+                {
+                    MessageBox.Show($"Lỗi khi lưu dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
         // --- Nút Ẩn: Dùng để Test đẩy dữ liệu mà không cần Cân thật ---
         private void btnTestFakeData_Click(object? sender, EventArgs e)
         {
-            var r = new Random();
-            var records = new System.Collections.Generic.List<ScaleRecord>();
-            for (int i = 1; i <= 5; i++)
+            var dialogResult = MessageBox.Show(
+                "Bạn muốn chạy kịch bản Test nào?\n\n" +
+                "YES: Mô phỏng đặt mẫu 250.5g lên cân (Ổn định) để test chốt số THỦ CÔNG.\n" +
+                "NO: Tự động chốt 5 dòng dữ liệu ngẫu nhiên (Để test Grid & Database).",
+                "Chọn kịch bản Test", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (dialogResult == DialogResult.Yes)
             {
-                var record = new ScaleRecord
-                {
-                    Timestamp = DateTime.Now.AddMinutes(-i * 5),
-                    Weight = (decimal)r.Next(100, 5000) / 10m,
-                    Unit = "g",
-                    NatCode = tboNat.Text.Trim() == "" ? $"NAT-{r.Next(1000, 9999)}" : tboNat.Text.Trim(),
-                    Batch = tboBatch.Text.Trim() == "" ? $"BATCH-{DateTime.Now:MMdd}-{i}" : tboBatch.Text.Trim(),
-                    SampleName = $"Mẫu kiểm thử {i}",
-                    Location = "Bàn Test 1",
-                    Tester = "Admin Test"
-                };
-                records.Add(record);
-                _ = _dbService.SaveRecordAsync(record); // Sync to server if possible
+                // Mô phỏng nhận chuỗi SICS từ cân (S S = Ổn định)
+                ConnectionManager_OnDataReceived("S S      250.5 g");
+                MessageBox.Show("Đã mô phỏng cân nhận mẫu 250.5g (Ổn định).\n\nBây giờ bạn hãy bấm nút [Lưu Số Liệu] để test chức năng chốt thủ công.", 
+                                "Test Mô phỏng", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
             
-            _repository.InsertBatch(records);
+            if (dialogResult == DialogResult.No)
+            {
+                var r = new Random();
+                var records = new System.Collections.Generic.List<ScaleRecord>();
+                for (int i = 1; i <= 5; i++)
+                {
+                    var record = new ScaleRecord
+                    {
+                        Timestamp = DateTime.Now.AddMinutes(-i * 5),
+                        Weight = (decimal)r.Next(100, 5000) / 10m,
+                        Unit = "g",
+                        NatCode = tboNat.Text.Trim() == "" ? $"NAT-{r.Next(1000, 9999)}" : tboNat.Text.Trim(),
+                        Batch = tboBatch.Text.Trim() == "" ? $"BATCH-{DateTime.Now:MMdd}-{i}" : tboBatch.Text.Trim(),
+                        SampleName = $"Mẫu kiểm thử {i}",
+                        Location = "Bàn Test 1",
+                        Tester = "Admin Test"
+                    };
+                    records.Add(record);
+                    _ = _dbService.SaveRecordAsync(record); // Sync to server if possible
+                }
+                
+                _repository.InsertBatch(records);
 
-            System.Media.SystemSounds.Beep.Play();
-            LoadDataToGrid();
-            MessageBox.Show($"Đã tạo và lưu thành công 5 dòng dữ liệu mẫu!", "Tạo dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                System.Media.SystemSounds.Beep.Play();
+                LoadDataToGrid();
+                MessageBox.Show($"Đã tạo và lưu thành công 5 dòng dữ liệu mẫu!", "Tạo dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private void LoadDataToGrid()
         {
             try
             {
-                _allRecords = _repository.GetAll();
+                _allRecords = _repository.GetAll() ?? new System.Collections.Generic.List<ScaleRecord>();
                 var dt = _allRecords.ToDataTable();
+
+                if (_bindingSource == null)
+                {
+                    LogError("[LoadDataToGrid] _bindingSource chưa được khởi tạo.");
+                    return;
+                }
+
                 _bindingSource.DataSource = dt;
                 
                 if (dgvWeightsheet.DataSource == null)
@@ -1194,6 +1240,7 @@ namespace Test
             }
             catch (Exception ex)
             {
+                LogError("LoadDataToGrid", ex);
                 MessageBox.Show($"Lỗi tải dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1545,10 +1592,22 @@ namespace Test
                 if (dgvWeightsheet.Columns.Contains("IsSelected"))
                 {
                     var chkCol = dgvWeightsheet.Columns["IsSelected"];
-                    chkCol.HeaderText = "Chọn";
-                    chkCol.DisplayIndex = 0;
-                    chkCol.Width = 50;
-                    chkCol.ReadOnly = false;
+                    if (chkCol != null)  // [FIX-NULLREF] Columns[] có thể trả null khi DataBindingComplete fires trong lúc grid đang rebuild columns
+                    {
+                        try
+                        {
+                            chkCol.HeaderText = "Chọn";
+                            chkCol.DisplayIndex = 0;
+                            // [FIX NRE] Tránh layout crash khi grid đang ở chế độ AutoSizeColumnsMode = Fill
+                            chkCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                                chkCol.Width = 50;
+                            chkCol.ReadOnly = false;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[DataBindingComplete] Lỗi khi set cột IsSelected: {ex.Message}");
+                        }
+                    }
                 }
             };
 
