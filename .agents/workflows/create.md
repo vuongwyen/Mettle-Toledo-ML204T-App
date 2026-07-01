@@ -16,22 +16,26 @@ This command starts a new application creation process.
 
 1. **Request Analysis**
    - Understand what the user wants
-   - If information is missing, use `conversation-manager` skill to ask
+   - If information is missing, use the `brainstorming` skill to ask clarifying questions
 
 2. **Project Planning**
    - Use `project-planner` agent for task breakdown
    - Determine tech stack
    - Plan file structure
-   - Create plan file and proceed to building
+   - Create the `{task-slug}.md` plan file in the project root, then proceed to building
 
-3. **Application Building (After Approval)**
+3. **Design Source-of-Truth (UI projects only)**
+   - If the app has a UI, create `DESIGN.md` at the project root BEFORE building UI — follow the `design-spec` skill (read `collection.md` for real-world references first).
+   - Skip only for headless/CLI/API-only projects.
+
+4. **Application Building (After Approval)**
    - Orchestrate with `app-builder` skill
    - Coordinate expert agents:
      - `database-architect` → Schema
      - `backend-specialist` → API
-     - `frontend-specialist` → UI
+     - `frontend-specialist` → UI (builds against `DESIGN.md` tokens)
 
-4. **Preview**
+5. **Preview**
    - Start with `auto_preview.py` when complete
    - Present URL to user
 

@@ -1,6 +1,7 @@
 ---
 name: performance-profiling
 description: Performance profiling principles. Measurement, analysis, and optimization techniques.
+when_to_use: "When diagnosing performance issues, running Lighthouse audits, analyzing bundle size, or optimizing Core Web Vitals."
 allowed-tools: Read, Glob, Grep, Bash
 ---
 

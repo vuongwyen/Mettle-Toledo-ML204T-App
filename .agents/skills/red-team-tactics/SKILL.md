@@ -1,6 +1,7 @@
 ---
 name: red-team-tactics
 description: Red team tactics principles based on MITRE ATT&CK. Attack phases, detection evasion, reporting.
+when_to_use: "When performing penetration testing, red team exercises, or evaluating attack surfaces using MITRE ATT&CK framework."
 allowed-tools: Read, Glob, Grep
 ---
 

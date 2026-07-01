@@ -29,6 +29,17 @@
 1. Tokenize user request
 2. Extract keywords
 3. Determine project type
-4. Detect missing information → forward to conversation-manager
+4. Detect missing information → forward to project-planner / orchestrator
 5. Suggest tech stack
 ```
+
+## Conflict Resolution
+
+When a request matches multiple keywords (e.g. "a CLI to manage my e-commerce products" matches both `cli` and `e-commerce`), resolve in this order:
+
+| Priority | Rule | Example |
+|----------|------|---------|
+| 1 | **Platform wins over domain.** A concrete platform (mobile / desktop / cli / extension) outranks a web/business domain (e-commerce, crm, blog). | "CLI to manage e-commerce" → **cli-tool** (e-commerce is the data domain, not the deliverable) |
+| 2 | **Head noun wins.** The keyword describing what is being built (grammatical subject) outranks modifiers. | "a **dashboard** for my Shopify store" → **nextjs-fullstack** (dashboard is the thing; Shopify is context) |
+| 3 | **Still ambiguous → ask.** If no rule breaks the tie, do NOT guess. Surface the options through the Socratic Gate (Phase 0) and let the user choose. | "an app for my shop" → ask: web, mobile, or desktop? |
+

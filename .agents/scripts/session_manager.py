@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Session Manager - Antigravity Kit
+Session Manager - AG Kit
 =================================
 Analyzes project state, detects tech stack, tracks file statistics, and provides
 a summary of the current session.
 
 Usage:
-    python .agent/scripts/session_manager.py status [path]
-    python .agent/scripts/session_manager.py info [path]
+    python .agents/scripts/session_manager.py status [path]
+    python .agents/scripts/session_manager.py info [path]
 """
 
 import os
@@ -56,7 +56,7 @@ def analyze_package_json(root: Path) -> Dict[str, Any]:
 def count_files(root: Path) -> Dict[str, int]:
     stats = {"created": 0, "modified": 0, "total": 0}
     # Simple count for now, comprehensive tracking would require git diff or extensive history
-    exclude = {".git", "node_modules", ".next", "dist", "build", ".agent", ".gemini", "__pycache__"}
+    exclude = {".git", "node_modules", ".next", "dist", "build", ".agents", ".agents", ".gemini", "__pycache__"}
     
     for root_dir, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if d not in exclude]

@@ -30,7 +30,7 @@ Web Debugging:      Mobile Debugging:
 
 | ❌ Default | ✅ Mobile-Correct |
 |------------|-------------------|
-| "Add console.logs" | Use Flipper / Reactotron |
+| "Add console.logs" | Use React Native DevTools / Reactotron |
 | "Check network tab" | Use Charles Proxy / Proxyman |
 | "It works on simulator" | **Test on Real Device** (HW specific bugs) |
 | "Reinstall node_modules" | **Clean Native Build** (Gradle/Pod cache) |
@@ -45,7 +45,7 @@ Web Debugging:      Mobile Debugging:
 | Tool | Purpose | Best For |
 |------|---------|----------|
 | **Reactotron** | State/API/Redux | JS side debugging |
-| **Flipper** | Layout/Network/db | Native + JS bridge |
+| **React Native DevTools** | Console/Network/Components/Profiler | Default debugger (RN 0.76+) |
 | **Expo Tools** | Element inspector | Quick UI checks |
 
 ### 🛠️ Native Layer (The Deep Dive)
@@ -80,7 +80,7 @@ Web Debugging:      Mobile Debugging:
 **Web:** Open Chrome DevTools → Network.
 **Mobile:** *You usually can't see this easily.*
 
-**Solution 1: Reactotron/Flipper**
+**Solution 1: React Native DevTools / Reactotron**
 - View network requests in the monitoring app.
 
 **Solution 2: Proxy (Charles/Proxyman)**

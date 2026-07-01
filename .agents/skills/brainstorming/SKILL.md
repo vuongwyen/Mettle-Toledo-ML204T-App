@@ -1,6 +1,7 @@
 ---
 name: brainstorming
 description: Socratic questioning protocol + user communication. MANDATORY for complex requests, new features, or unclear requirements. Includes progress reporting and error handling.
+when_to_use: "When exploring options before implementation, clarifying requirements, or when the user needs creative problem-solving. Use with /brainstorm workflow."
 allowed-tools: Read, Glob, Grep
 ---
 
@@ -21,14 +22,27 @@ allowed-tools: Read, Glob, Grep
 | Update/change request | 🛑 Confirm scope |
 | Vague requirements | 🛑 Ask purpose, users, constraints |
 
+### 🧠 Memory Check (2026.5.13 — Before Questioning)
+
+> Before asking questions, check if past context exists:
+
+```
+0. CHECK MEMORY — Does .agents/memory/MEMORY.md exist?
+   → YES: Read index. Apply relevant past decisions silently.
+          Skip questions already answered in memory.
+   → NO: Proceed with standard Socratic Gate.
+```
+
 ### 🚫 MANDATORY: 3 Questions Before Implementation
 
 1. **STOP** - Do NOT start coding
-2. **ASK** - Minimum 3 questions:
+2. **CHECK** - Read `.agents/memory/` for past context on this topic
+3. **ASK** - Minimum 3 questions (skip any already answered via memory):
    - 🎯 Purpose: What problem are you solving?
    - 👥 Users: Who will use this?
    - 📦 Scope: Must-have vs nice-to-have?
-3. **WAIT** - Get response before proceeding
+4. **WAIT** - Get response before proceeding
+5. **SAVE** - After brainstorming, save key decisions: `/remember [decision]`
 
 ---
 

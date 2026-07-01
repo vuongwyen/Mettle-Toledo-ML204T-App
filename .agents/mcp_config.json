@@ -1,3 +1,4 @@
+// setup mcp server in  ~/.gemini\ag-kit\mcp_config.json
 {
     "mcpServers": {
         "context7": {
@@ -8,17 +9,6 @@
                 "--api-key",
                 "YOUR_API_KEY"
             ]
-        },
-        "shadcn": {
-            "command": "npx",
-            "args": [
-                "shadcn@latest",
-                "mcp"
-            ]
         }
-        //other mcp servers
     }
 }
-
-// setup mcp server in  ~/.gemini\antigravity\mcp_config.json
-

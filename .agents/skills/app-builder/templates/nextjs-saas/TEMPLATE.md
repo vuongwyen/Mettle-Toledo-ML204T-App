@@ -1,9 +1,11 @@
 ---
 name: nextjs-saas
-description: Next.js SaaS template principles (2026 Standards). React 19, Server Actions, Auth.js v6.
+description: Next.js SaaS template principles (2026 Standards). React 19, Server Actions, Auth.js v5.
 ---
 
 # Next.js SaaS Template (Updated 2026)
+
+> Versions reflect the latest stable line verified 2026-05. Pin to the current stable when scaffolding.
 
 ## Tech Stack
 
@@ -11,9 +13,9 @@ description: Next.js SaaS template principles (2026 Standards). React 19, Server
 |-----------|------------|-----------------|
 | Framework | Next.js | v16+ (App Router, React Compiler) |
 | Runtime | Node.js | v24 (Krypton LTS) |
-| Auth | Auth.js | v6 (formerly NextAuth) |
+| Auth | Auth.js | v5 (`next-auth@beta`, formerly NextAuth). Alternative: Clerk |
 | Payments | Stripe API | Latest |
-| Database | PostgreSQL | Prisma v6 (Serverless Driver) |
+| Database | PostgreSQL | Prisma v7+ (Serverless Driver) |
 | Email | Resend | React Email |
 | UI | Tailwind CSS | v4 (Oxide Engine, no config file) |
 
@@ -41,8 +43,9 @@ project-name/
 │   │   ├── forms/       # Client components using useActionState (React 19)
 │   │   └── ui/          # Shadcn UI
 │   ├── lib/
-│   │   ├── auth.ts      # Auth.js v6 config
+│   │   ├── auth.ts      # Auth.js v5 config
 │   │   ├── db.ts        # Prisma Singleton
+│   │   ├── data/        # Data Access Layer (server-only reads)
 │   │   └── stripe.ts    # Stripe Singleton
 │   └── styles/
 │       └── globals.css  # Tailwind v4 imports (CSS only)
@@ -55,7 +58,7 @@ project-name/
 
 | Feature | Implementation |
 |---------|---------------|
-| Auth | Auth.js v6 + Passkeys + OAuth |
+| Auth | Auth.js v5 + Passkeys + OAuth |
 | Data Mutation | Server Actions (No API routes) |
 | Subscriptions | Stripe Checkout & Customer Portal |
 | Webhooks | Asynchronous Stripe event handling |
@@ -79,7 +82,7 @@ project-name/
 | Variable | Purpose |
 |----------|---------|
 | DATABASE_URL | Prisma connection string (Postgres) |
-| AUTH_SECRET | Replaces NEXTAUTH_SECRET (Auth.js v6) |
+| AUTH_SECRET | Replaces NEXTAUTH_SECRET (Auth.js v5) |
 | STRIPE_SECRET_KEY | Payments (Server-side) |
 | STRIPE_WEBHOOK_SECRET | Webhook verification |
 | RESEND_API_KEY | Email sending |

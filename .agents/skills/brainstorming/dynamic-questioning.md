@@ -56,9 +56,9 @@ If a question doesn't reduce implementation paths → **DELETE IT**.
 ❌ ASSUMPTION: "User probably wants Stripe for payments"
 ✅ QUESTION: "Which payment provider fits your needs?
 
-   Stripe → Best documentation, 2.9% + $0.30, US-centric
-   LemonSqueezy → Merchant of Record, 5% + $0.50, global taxes
-   Paddle → Complex pricing, handles EU VAT, enterprise focus"
+   Stripe → Best documentation, low per-transaction fee, US-centric
+   LemonSqueezy → Merchant of Record, higher fee, handles global taxes
+   Paddle → Merchant of Record, handles EU VAT, enterprise focus"
 ```
 
 ---
@@ -110,7 +110,7 @@ INPUT: User request + Context (greenfield/feature/refactor/debug)
 |----------|----------------|------------|
 | **Social Login Needed?** | OAuth providers vs. password reset infrastructure | +UX, -Control |
 | **Role-Based Permissions?** | RBAC tables, policy enforcement, admin UI | +Security, -Development time |
-| **2FA Required?** | TOTP/SMI infrastructure, backup codes, recovery flow | +Security, -UX friction |
+| **2FA Required?** | TOTP/SMS infrastructure, backup codes, recovery flow | +Security, -UX friction |
 | **Email Verification?** | Verification tokens, email service, resend logic | +Security, -Sign-up friction |
 
 ### Real-time
@@ -242,11 +242,11 @@ Based on your Instagram clone request:
 - High-volume social apps: 1000 users × 10 photos × 2MB = 20GB storage
 
 **Options:**
-| Option | Cost | Speed | Complexity | Best For |
-|--------|------|-------|------------|----------|
-| **Cloudinary** | $89/mo (25GB) | Fast (CDN) | Low | MVP, rapid launch |
-| **AWS S3 + CloudFront** | $0.023/GB | Fast (CDN) | Medium | Production, cost-optimized |
-| **Supabase Storage** | Free tier 1GB | Medium | Low | Small scale, simple |
+| Option | Cost model | Speed | Complexity | Best For |
+|--------|-----------|-------|------------|----------|
+| **Cloudinary** | Per-tier subscription | Fast (CDN) | Low | MVP, rapid launch |
+| **AWS S3 + CloudFront** | Pay per GB stored/served | Fast (CDN) | Medium | Production, cost-optimized |
+| **Supabase Storage** | Free tier + usage | Medium | Low | Small scale, simple |
 | **Local Storage** | Server cost | Slow | Low | Development only |
 
 **If Not Specified:** Cloudinary (balanced for MVP)
@@ -277,15 +277,15 @@ Based on your Instagram clone request:
 **Question:** How do users sign up and login?
 
 **Why This Matters:**
-- Affects: Development time (2-5 hours), security posture, UX friction
+- Affects: Development effort, security posture, UX friction
 
 **Options:**
-| Option | Dev Time | Security | UX | Best For |
-|--------|----------|----------|-----|----------|
-| **Email/Password** | 4-5 hrs | High (if 2FA) | Medium | Full control needed |
-| **Social Only** | 1-2 hrs | Provider-dependent | Smooth | B2C, rapid launch |
-| **Magic Link** | 2-3 hrs | Medium | Very smooth | Security-focused |
-| **Clerk/Auth0** | 1 hr | High | Smooth | Fastest to market |
+| Option | Effort | Security | UX | Best For |
+|--------|--------|----------|-----|----------|
+| **Email/Password** | Higher | High (if 2FA) | Medium | Full control needed |
+| **Social Only** | Low | Provider-dependent | Smooth | B2C, rapid launch |
+| **Magic Link** | Medium | Medium | Very smooth | Security-focused |
+| **Clerk/Auth0** | Lowest | High | Smooth | Fastest to market |
 
 **If Not Specified:** Clerk (fastest for MVP)
 
@@ -335,7 +335,7 @@ Based on your Instagram clone request:
 | Video | Defer to v2 | N/A |
 | DM | Defer to v2 | N/A |
 
-**Total Estimated MVP Time:** 15-20 hours with recommendations above
+**Scope:** MVP covers the must-haves above; Video and DM deferred to v2.
 ```
 
 ---

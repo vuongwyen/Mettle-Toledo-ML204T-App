@@ -1,6 +1,7 @@
 ---
 name: app-builder
 description: Main application building orchestrator. Creates full-stack applications from natural language requests. Determines project type, selects tech stack, coordinates agents.
+when_to_use: "When creating a new full-stack application from scratch, selecting tech stack, or scaffolding project structure. Use with /create workflow."
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
@@ -32,7 +33,7 @@ Quick-start scaffolding for new projects. **Read the matching template only!**
 | [nextjs-fullstack](templates/nextjs-fullstack/TEMPLATE.md) | Next.js + Prisma | Full-stack web app |
 | [nextjs-saas](templates/nextjs-saas/TEMPLATE.md) | Next.js + Stripe | SaaS product |
 | [nextjs-static](templates/nextjs-static/TEMPLATE.md) | Next.js + Framer | Landing page |
-| [nuxt-app](templates/nuxt-app/TEMPLATE.md) | Nuxt 3 + Pinia | Vue full-stack app |
+| [nuxt-app](templates/nuxt-app/TEMPLATE.md) | Nuxt 4 + Pinia | Vue full-stack app |
 | [express-api](templates/express-api/TEMPLATE.md) | Express + JWT | REST API |
 | [python-fastapi](templates/python-fastapi/TEMPLATE.md) | FastAPI | Python API |
 | [react-native-app](templates/react-native-app/TEMPLATE.md) | Expo + Zustand | Mobile app |
@@ -41,6 +42,7 @@ Quick-start scaffolding for new projects. **Read the matching template only!**
 | [chrome-extension](templates/chrome-extension/TEMPLATE.md) | Chrome MV3 | Browser extension |
 | [cli-tool](templates/cli-tool/TEMPLATE.md) | Node.js + Commander | CLI app |
 | [monorepo-turborepo](templates/monorepo-turborepo/TEMPLATE.md) | Turborepo + pnpm | Monorepo |
+| [astro-static](templates/astro-static/TEMPLATE.md) | Astro + MDX | Blog / Documentation |
 
 ---
 
@@ -66,7 +68,7 @@ App Builder Process:
 2. Tech stack: Next.js + Prisma + Cloudinary + Clerk
 3. Create plan:
    ├─ Database schema (users, posts, likes, follows)
-   ├─ API routes (12 endpoints)
+   ├─ API routes (auth, posts, likes, follows)
    ├─ Pages (feed, profile, upload)
    └─ Components (PostCard, Feed, LikeButton)
 4. Coordinate agents

@@ -5,14 +5,16 @@ description: Node.js CLI tool template principles. Commander.js, interactive pro
 
 # CLI Tool Template
 
+> Versions reflect the latest stable line verified 2026-05. Pin to the current stable when scaffolding.
+
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| Runtime | Node.js 20+ |
-| Language | TypeScript |
-| CLI Framework | Commander.js |
-| Prompts | Inquirer.js |
+| Runtime | Node.js 24 (Krypton LTS) |
+| Language | TypeScript (ESM) |
+| CLI Framework | Commander.js (v15, needs Node ≥22.12) |
+| Prompts | @inquirer/prompts (modular) |
 | Output | chalk + ora |
 | Config | cosmiconfig |
 
@@ -23,16 +25,13 @@ description: Node.js CLI tool template principles. Commander.js, interactive pro
 ```
 project-name/
 ├── src/
-│   ├── index.ts         # Entry point
-│   ├── cli.ts           # CLI setup
-│   ├── commands/        # Command handlers
-│   ├── lib/
-│   │   ├── config.ts    # Config loader
-│   │   └── logger.ts    # Styled output
-│   └── types/
-├── bin/
-│   └── cli.js           # Executable
-└── package.json
+│   ├── index.ts         # Entry: #!/usr/bin/env node shebang, wires Commander
+│   ├── commands/        # One file per command (factory functions)
+│   ├── lib/             # Core logic (framework-agnostic, testable)
+│   ├── utils/           # logger (chalk/ora), prompt wrappers
+│   └── config.ts        # cosmiconfig loader
+├── dist/                # Build output (tsup/tsc)
+└── package.json         # "type":"module", "bin":{...}
 ```
 
 ---
@@ -52,8 +51,8 @@ project-name/
 
 | Component | Purpose |
 |-----------|---------|
-| Commander | Command parsing |
-| Inquirer | Interactive prompts |
+| Commander | Command parsing (use a local `new Command()` for testability) |
+| @inquirer/prompts | Modular interactive prompts (`input`, `select`, `confirm`) |
 | Chalk | Colored output |
 | Ora | Spinners/loading |
 | Cosmiconfig | Config file discovery |
@@ -63,9 +62,9 @@ project-name/
 ## Setup Steps
 
 1. Create project directory
-2. `npm init -y`
+2. `npm init -y` then set `"type": "module"`
 3. Install deps: `npm install commander @inquirer/prompts chalk ora cosmiconfig`
-4. Configure bin in package.json
+4. Point `bin` at compiled `./dist/index.js`, keep `#!/usr/bin/env node` shebang
 5. `npm link` for local testing
 
 ---
@@ -81,8 +80,9 @@ npm publish
 
 ## Best Practices
 
-- Provide helpful error messages
-- Support both interactive and non-interactive modes
-- Use consistent output styling
-- Validate inputs with Zod
-- Exit with proper codes (0 success, 1 error)
+- Keep `src/index.ts` thin; attach commands via `.addCommand()` factories in `src/commands/`
+- Put business logic in `lib/`/`utils/` so commands stay testable wrappers
+- ESM by default; build with tsup/esbuild
+- Support both interactive and non-interactive (`--yes`) modes
+- Validate inputs with Zod; exit with proper codes (0 success, 1 error)
+- Alternatives worth knowing: @clack/prompts (polished prompts), citty (lightweight ESM command framework)

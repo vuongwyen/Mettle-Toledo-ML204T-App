@@ -1,6 +1,7 @@
 ---
 name: mcp-builder
 description: MCP (Model Context Protocol) server building principles. Tool design, resource patterns, best practices.
+when_to_use: "When building MCP (Model Context Protocol) servers, designing MCP tools, or implementing MCP resource patterns."
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
@@ -33,18 +34,21 @@ Model Context Protocol - standard for connecting AI systems with external tools 
 ```
 my-mcp-server/
 ├── src/
-│   └── index.ts      # Main entry
-├── package.json
+│   └── index.ts      # Main entry — McpServer from @modelcontextprotocol/sdk
+├── package.json      # dep: @modelcontextprotocol/sdk
 └── tsconfig.json
 ```
+
+> TypeScript SDK: `@modelcontextprotocol/sdk` (`McpServer`). Python SDK: `mcp` (`pip install "mcp[cli]"`, `FastMCP` bundled in `mcp.server.fastmcp`).
 
 ### Transport Types
 
 | Type | Use |
 |------|-----|
-| **Stdio** | Local, CLI-based |
-| **SSE** | Web-based, streaming |
-| **WebSocket** | Real-time, bidirectional |
+| **stdio** | Local, CLI-based |
+| **Streamable HTTP** | Remote/web servers (replaced the deprecated HTTP+SSE transport) |
+
+> The current spec (2025-06-18) defines two standard transports: stdio and Streamable HTTP. WebSocket is not a standard transport. Validate the `Origin` header on Streamable HTTP servers.
 
 ---
 
@@ -139,17 +143,32 @@ my-mcp-server/
 
 ## 8. Configuration
 
-### Claude Desktop Config
+### Client Config (Claude Desktop, Claude Code, IDEs)
 
 | Field | Purpose |
 |-------|---------|
-| command | Executable to run |
+| command | Executable to run (stdio servers) |
 | args | Command arguments |
 | env | Environment variables |
 
+> MCP is multi-client — the same server works across Claude Desktop, Claude Code, and IDE hosts. Remote (Streamable HTTP) servers authenticate via OAuth rather than a local command.
+
 ---
 
-## 9. Testing
+## 9. Current Spec Features
+
+Worth using in modern servers (spec 2025-06-18):
+
+| Feature | Purpose |
+|---------|---------|
+| Tool annotations | Hint read-only/destructive behavior to the client |
+| Structured content / `outputSchema` | Typed, predictable tool results |
+| Resource links | Return references to resources from tool results |
+| OAuth | Auth for remote/Streamable HTTP servers |
+
+---
+
+## 10. Testing
 
 ### Test Categories
 
@@ -161,7 +180,7 @@ my-mcp-server/
 
 ---
 
-## 10. Best Practices Checklist
+## 11. Best Practices Checklist
 
 - [ ] Clear, action-oriented tool names
 - [ ] Complete input schemas with descriptions

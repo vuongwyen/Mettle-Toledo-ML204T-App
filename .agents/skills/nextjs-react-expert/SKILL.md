@@ -1,12 +1,13 @@
 ---
-name: react-best-practices
+name: nextjs-react-expert
 description: React and Next.js performance optimization from Vercel Engineering. Use when building React components, optimizing performance, eliminating waterfalls, reducing bundle size, reviewing code for performance issues, or implementing server/client-side optimizations.
+when_to_use: "When building React components, optimizing Next.js performance, eliminating waterfalls, or reducing bundle size. For React/Next.js web projects."
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Next.js & React Performance Expert
 
-> **From Vercel Engineering** - 57 optimization rules prioritized by impact
+> **From Vercel Engineering** - 58 optimization rules prioritized by impact, plus Next.js 16 Cache Components
 > **Philosophy:** Eliminate waterfalls first, optimize bundles second, then micro-optimize.
 
 ---
@@ -23,7 +24,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 | File                                    | Impact             | Rules    | When to Read                                                    |
 | --------------------------------------- | ------------------ | -------- | --------------------------------------------------------------- |
-| `1-async-eliminating-waterfalls.md`     | 🔴 **CRITICAL**    | 5 rules  | Slow page loads, sequential API calls, data fetching waterfalls |
+| `1-async-eliminating-waterfalls.md`     | 🔴 **CRITICAL**    | 6 rules  | Slow page loads, sequential API calls, data fetching waterfalls |
 | `2-bundle-bundle-size-optimization.md`  | 🔴 **CRITICAL**    | 5 rules  | Large bundle size, slow Time to Interactive, First Load issues  |
 | `3-server-server-side-performance.md`   | 🟠 **HIGH**        | 7 rules  | Slow SSR, API route optimization, server-side waterfalls        |
 | `4-client-client-side-data-fetching.md` | 🟡 **MEDIUM-HIGH** | 4 rules  | Client data management, SWR patterns, deduplication             |
@@ -33,7 +34,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 | `8-advanced-advanced-patterns.md`       | 🔵 **VARIABLE**    | 3 rules  | Advanced React patterns, useLatest, init-once                   |
 | `9-cache-components.md`                | 🔴 **CRITICAL**    | 4 sections | **Next.js 16+ Only**: `use cache`, `cacheLife`, PPR, `cacheTag` |
 
-**Total: 57 rules across 8 categories**
+**Total: 58 rules across 8 categories, plus Section 9 (Cache Components) for Next.js 16+**
 
 ---
 
@@ -287,7 +288,5 @@ Before shipping to production:
 
 ---
 
-**Source:** Vercel Engineering
-**Date:** January 2026
-**Version:** 1.0.0
-**Total Rules:** 57 across 8 categories
+**Source:** Vercel Engineering (Next.js 16 / React 19 era)
+**Total Rules:** 58 across 8 categories, plus Section 9 (Cache Components)

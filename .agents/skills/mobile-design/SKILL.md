@@ -1,6 +1,7 @@
 ---
 name: mobile-design
 description: Mobile-first design thinking and decision-making for iOS and Android apps. Touch interaction, performance patterns, platform conventions. Teaches principles, not fixed values. Use when building React Native, Flutter, or native mobile apps.
+when_to_use: "When designing mobile app interfaces for iOS/Android, React Native, or Flutter. Touch interaction and platform conventions. NOT for web apps."
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
@@ -34,7 +35,7 @@ allowed-tools: Read, Glob, Grep, Bash
 | **[mobile-performance.md](mobile-performance.md)** | **RN/Flutter performance, 60fps, memory** | **⬜ CRITICAL** |
 | **[mobile-backend.md](mobile-backend.md)** | **Push notifications, offline sync, mobile API** | **⬜ CRITICAL** |
 | **[mobile-testing.md](mobile-testing.md)** | **Testing pyramid, E2E, platform-specific** | **⬜ CRITICAL** |
-| **[mobile-debugging.md](mobile-debugging.md)** | **Native vs JS debugging, Flipper, Logcat** | **⬜ CRITICAL** |
+| **[mobile-debugging.md](mobile-debugging.md)** | **Native vs JS debugging, RN DevTools, Logcat** | **⬜ CRITICAL** |
 | [mobile-navigation.md](mobile-navigation.md) | Tab/Stack/Drawer, deep linking | ⬜ Read |
 | [mobile-typography.md](mobile-typography.md) | System fonts, Dynamic Type, a11y | ⬜ Read |
 | [mobile-color-system.md](mobile-color-system.md) | OLED, dark mode, battery-aware | ⬜ Read |
@@ -71,7 +72,7 @@ allowed-tools: Read, Glob, Grep, Bash
 | **Offline** | "Does this need to work offline?" | Affects data strategy |
 | **Target devices** | "Phone only, or tablet support?" | Layout complexity |
 
-### ⛔ AI MOBILE ANTI-PATTERNS (YASAK LİSTESİ)
+### ⛔ AI MOBILE ANTI-PATTERNS (BANNED LIST)
 
 > 🚫 **These are AI default tendencies that MUST be avoided!**
 

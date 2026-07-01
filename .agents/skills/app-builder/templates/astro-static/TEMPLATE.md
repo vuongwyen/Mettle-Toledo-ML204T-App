@@ -5,13 +5,15 @@ description: Astro static site template principles. Content-focused websites, bl
 
 # Astro Static Site Template
 
+> Versions reflect the latest stable line verified 2026-05. Pin to the current stable when scaffolding.
+
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| Framework | Astro 4.x |
-| Content | MDX + Content Collections |
-| Styling | Tailwind CSS |
+| Framework | Astro 6.x |
+| Content | MDX + Content Collections (Content Layer API) |
+| Styling | Tailwind CSS v4 (@tailwindcss/vite) |
 | Integrations | Sitemap, RSS, SEO |
 | Output | Static/SSG |
 
@@ -23,12 +25,12 @@ description: Astro static site template principles. Content-focused websites, bl
 project-name/
 ├── src/
 │   ├── components/      # .astro components
-│   ├── content/         # MDX content
-│   │   ├── blog/
-│   │   └── config.ts    # Collection schemas
+│   ├── content/         # Collection entries (blog/, docs/ .md/.mdx)
 │   ├── layouts/         # Page layouts
-│   ├── pages/           # File-based routing
-│   └── styles/
+│   ├── pages/           # File-based routing (only reserved dir)
+│   ├── styles/
+│   │   └── global.css   # @import "tailwindcss";
+│   └── content.config.ts # Collection definitions (Content Layer, in src/ root)
 ├── public/              # Static assets
 ├── astro.config.mjs
 └── package.json
@@ -40,7 +42,7 @@ project-name/
 
 | Concept | Description |
 |---------|-------------|
-| Content Collections | Type-safe content with Zod schemas |
+| Content Layer API | Collections defined in `src/content.config.ts` with `loader`s (glob/file) + Zod schemas |
 | Islands Architecture | Partial hydration for interactivity |
 | Zero JS by default | Static HTML unless needed |
 | MDX Support | Markdown with components |
@@ -50,9 +52,9 @@ project-name/
 ## Setup Steps
 
 1. `npm create astro@latest {{name}}`
-2. Add integrations: `npx astro add mdx tailwind sitemap`
-3. Configure `astro.config.mjs`
-4. Create content collections
+2. Add integrations: `npx astro add mdx sitemap`
+3. Add Tailwind v4: `npx astro add tailwind` (installs @tailwindcss/vite, not the legacy @astrojs/tailwind)
+4. Define collections in `src/content.config.ts` using `loader`s + Zod schemas
 5. `npm run dev`
 
 ---

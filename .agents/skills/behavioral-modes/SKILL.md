@@ -1,6 +1,7 @@
 ---
 name: behavioral-modes
 description: AI operational modes (brainstorm, implement, debug, review, teach, ship, orchestrate). Use to adapt behavior based on task type.
+when_to_use: "When adapting AI behavior for specific task types: brainstorm, implement, debug, review, teach, ship, or orchestrate modes."
 allowed-tools: Read, Glob, Grep
 ---
 
@@ -206,7 +207,7 @@ The AI should automatically detect the appropriate mode based on:
 
 ---
 
-## Multi-Agent Collaboration Patterns (2025)
+## Multi-Agent Collaboration Patterns
 
 Modern architectures optimized for agent-to-agent collaboration:
 
@@ -228,7 +229,16 @@ Behavior for creating and loading "Mental Model" summaries to preserve context b
 
 ## Combining Modes
 
----
+Modes are not exclusive — most real tasks chain several in sequence:
+
+| Flow | Mode Chain |
+|------|------------|
+| New feature | BRAINSTORM → PLAN-EXECUTE-CRITIC → IMPLEMENT → REVIEW → SHIP |
+| Bug fix | EXPLORE → DEBUG → IMPLEMENT → REVIEW |
+| Unfamiliar codebase | EXPLORE → TEACH → BRAINSTORM |
+| Risky refactor | EXPLORE → PLAN-EXECUTE-CRITIC → IMPLEMENT → REVIEW |
+
+Switch modes when the work changes shape (e.g. drop from IMPLEMENT to DEBUG the moment a test fails), and carry context forward with MENTAL MODEL SYNC across long sessions.
 
 ## Manual Mode Switching
 

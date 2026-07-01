@@ -111,7 +111,7 @@ Before any deployment:
 ### Summary
 - **Version:** v1.2.3
 - **Environment:** production
-- **Duration:** 47 seconds
+- **Duration:** [build + deploy time]
 - **Platform:** Vercel
 
 ### URLs
@@ -171,6 +171,6 @@ Run `/deploy rollback` if needed.
 /deploy
 /deploy check
 /deploy preview
-/deploy production --skip-tests
+/deploy production
 /deploy rollback
 ```

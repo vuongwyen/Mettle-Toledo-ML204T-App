@@ -1,12 +1,13 @@
 ---
 name: nodejs-best-practices
 description: Node.js development principles and decision-making. Framework selection, async patterns, security, and architecture. Teaches thinking, not copying.
+when_to_use: "When building Node.js backends, selecting frameworks (Express/Fastify/NestJS), or implementing async patterns."
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Node.js Best Practices
 
-> Principles and decision-making for Node.js development in 2025.
+> Principles and decision-making for modern Node.js development.
 > **Learn to THINK, not memorize code patterns.**
 
 ---
@@ -21,7 +22,7 @@ This skill teaches **decision-making principles**, not fixed code to copy.
 
 ---
 
-## 1. Framework Selection (2025)
+## 1. Framework Selection
 
 ### Decision Tree
 
@@ -32,7 +33,7 @@ What are you building?
 │   └── Hono (zero-dependency, ultra-fast cold starts)
 │
 ├── High Performance API
-│   └── Fastify (2-3x faster than Express)
+│   └── Fastify (~5x req/sec of Express in Fastify's own hello-world benchmark; benchmark your own workload)
 │
 ├── Enterprise/Team familiarity
 │   └── NestJS (structured, DI, decorators)
@@ -62,14 +63,15 @@ What are you building?
 
 ---
 
-## 2. Runtime Considerations (2025)
+## 2. Runtime Considerations
 
 ### Native TypeScript
 
 ```
-Node.js 22+: --experimental-strip-types
-├── Run .ts files directly
-├── No build step needed for simple projects
+Node.js 24+ (Active LTS): type-stripping ON by default
+├── Run .ts files directly: node file.ts (no flag, stable since 24.12)
+├── Erasable syntax only — enums, runtime namespaces, param properties error out
+├── For those, use tsx (--experimental-transform-types was removed in Node 26)
 └── Consider for: scripts, simple APIs
 ```
 
@@ -285,7 +287,7 @@ Trust nothing:
 3. **Error handling**: What happens when things fail?
 4. **Not worth testing**: Framework code, trivial getters
 
-### Built-in Test Runner (Node.js 22+)
+### Built-in Test Runner (stable since Node.js 20)
 
 ```
 node --test src/**/*.test.ts
@@ -296,7 +298,7 @@ node --test src/**/*.test.ts
 
 ---
 
-## 10. Anti-Patterns to Avoid
+## 9. Anti-Patterns to Avoid
 
 ### ❌ DON'T:
 - Use Express for new edge projects (use Hono)
@@ -317,7 +319,7 @@ node --test src/**/*.test.ts
 
 ---
 
-## 11. Decision Checklist
+## 10. Decision Checklist
 
 Before implementing:
 

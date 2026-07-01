@@ -29,7 +29,7 @@ What type of game?
     └── Custom → Raw Canvas/WebGL
 ```
 
-### Comparison (2025)
+### Comparison
 
 | Framework | Type | Best For |
 |-----------|------|----------|
@@ -42,7 +42,7 @@ What type of game?
 
 ## 2. WebGPU Adoption
 
-### Browser Support (2025)
+### Browser Support
 
 | Browser | Support |
 |---------|---------|

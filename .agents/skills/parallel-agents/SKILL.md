@@ -1,16 +1,18 @@
 ---
 name: parallel-agents
 description: Multi-agent orchestration patterns. Use when multiple independent tasks can run with different domain expertise or when comprehensive analysis requires multiple perspectives.
+when_to_use: "When a task requires 2+ specialist agents, comprehensive multi-domain analysis, or coordinated parallel execution. Use with /orchestrate or /coordinate workflows. NOT for single-domain tasks where one agent suffices."
 allowed-tools: Read, Glob, Grep
+effort: medium
 ---
 
 # Native Parallel Agents
 
-> Orchestration through Antigravity's built-in Agent Tool
+> Orchestration through AG Kit's built-in Agent Tool
 
 ## Overview
 
-This skill enables coordinating multiple specialized agents through Antigravity's native agent system. Unlike external scripts, this approach keeps all orchestration within Antigravity's control.
+This skill enables coordinating multiple specialized agents through AG Kit's native agent system. Unlike external scripts, this approach keeps all orchestration within AG Kit's control.
 
 ## When to Use Orchestration
 
@@ -113,7 +115,7 @@ Agents: security-auditor → penetration-tester → synthesis
 
 ---
 
-## Antigravity Built-in Agents
+## AG Kit Built-in Agents
 
 These work alongside custom agents:
 

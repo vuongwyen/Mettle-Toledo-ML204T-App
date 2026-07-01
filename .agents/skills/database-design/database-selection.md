@@ -1,4 +1,4 @@
-# Database Selection (2025)
+# Database Selection
 
 > Choose database based on context, not default.
 
@@ -32,7 +32,7 @@ What are your requirements?
 | **Neon** | Serverless PG, branching | PG complexity |
 | **Turso** | Edge, low latency | SQLite limitations |
 | **SQLite** | Simple, embedded, local | Single-writer |
-| **PlanetScale** | MySQL, global scale | No foreign keys |
+| **PlanetScale** | MySQL, global scale | FK support enabled per-database |
 
 ## Questions to Ask
 

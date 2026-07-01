@@ -1,22 +1,22 @@
 ---
 name: nuxt-app
-description: Nuxt 4 full-stack template. Vue 3 (Vapor), Pinia, Tailwind v4, Prisma.
+description: Nuxt 4 full-stack template. Vue 3, Pinia, Tailwind v4, Prisma.
 ---
 
 # Nuxt 4 Full-Stack Template (2026 Edition)
 
-Mẫu template Full-Stack hiện đại cho Nuxt 4, tối ưu hóa hiệu suất với Vue Vapor Mode và Tailwind v4.
+> Modern full-stack template for Nuxt 4. Versions reflect the latest stable line verified 2026-05; pin to current stable when scaffolding.
 
 ## Tech Stack
 
 | Component | Technology | Version / Notes |
 |-----------|------------|-----------------|
-| Framework | Nuxt | v4.0+ (App Directory structure) |
-| UI Engine | Vue | v3.6+ (Vapor Mode enabled) |
+| Framework | Nuxt | v4+ (app/ srcDir structure) |
+| UI Engine | Vue | v3 (stable) |
 | Language | TypeScript | v5+ (Strict Mode) |
-| State | Pinia | v3+ (Store syntax) |
+| State | Pinia | v3+ (setup store syntax) |
 | Database | PostgreSQL | Prisma ORM |
-| Styling | Tailwind CSS | v4.0 (Vite Plugin, Zero-config) |
+| Styling | Tailwind CSS | v4 (@tailwindcss/vite plugin) |
 | UI Lib | Nuxt UI | v3 (Tailwind v4 native) |
 | Validation | Zod | Schema validation |
 
@@ -24,28 +24,31 @@ Mẫu template Full-Stack hiện đại cho Nuxt 4, tối ưu hóa hiệu suất
 
 ## Directory Structure (Nuxt 4 Standard)
 
-Sử dụng cấu trúc `app/` để giữ thư mục gốc gọn gàng.
+Nuxt 4 defaults `srcDir` to `app/`, keeping client code separate from `server/` and root config.
 
 ```
 project-name/
-├── app/                  # Application Source
-│   ├── assets/
-│   │   └── css/
-│   │       └── main.css  # Tailwind v4 imports
+├── app/                  # Application source (Nuxt 4 srcDir)
+│   ├── assets/css/
+│   │   └── main.css      # Tailwind v4 import
 │   ├── components/       # Auto-imported components
 │   ├── composables/      # Auto-imported logic
 │   ├── layouts/
+│   ├── middleware/
 │   ├── pages/            # File-based routing
+│   ├── plugins/
+│   ├── stores/           # Pinia stores
 │   ├── app.vue           # Root component
-│   └── router.options.ts
-├── server/               # Nitro Server Engine
-│   ├── api/              # API Routes (e.g. /api/users)
-│   ├── routes/           # Server Routes
-│   └── utils/            # Server-only helpers (Prisma)
+│   └── app.config.ts     # Reactive runtime config
+├── server/               # Nitro server engine
+│   ├── api/              # API routes (e.g. /api/users)
+│   ├── routes/           # Server routes
+│   └── utils/            # Server-only helpers (Prisma client)
+├── shared/               # Isomorphic code (types, Zod schemas)
 ├── prisma/
 │   └── schema.prisma
 ├── public/
-├── nuxt.config.ts        # Main Config
+├── nuxt.config.ts
 └── package.json
 ```
 
@@ -53,13 +56,13 @@ project-name/
 
 ## Key Concepts (2026)
 
-| Concept | Description | Future Update |
-|---------|-------------|---------------|
-| **App Directory** | `app/` | Tách biệt mã nguồn ứng dụng và file cấu hình root. |
-| **Vapor Mode** | Opt-in performance | Render không cần Virtual DOM (như SolidJS). Bật trong `nuxt.config`. |
-| **Server Functions** | RPC-style calls | Gọi hàm server trực tiếp từ client (thay thế dần API routes thủ công). |
-| **Tailwind v4** | CSS-first | Cấu hình theme trực tiếp trong CSS, không cần `tailwind.config.js`. |
-| **Nuxt Islands** | Server Components | Render component cô lập trên server (`<NuxtIsland name="..." />`). |
+| Concept | Description |
+|---------|-------------|
+| **app/ srcDir** | Client code lives under `app/`, cleanly separated from `server/` and config |
+| **shared/** | Isomorphic code (types, Zod validators) usable in both Vue app and Nitro server |
+| **Server Engine** | Nitro-based; API routes in `server/api/`, Prisma client in `server/utils/` |
+| **Tailwind v4** | CSS-first config; theme lives in CSS via `@theme`, no `tailwind.config.js` |
+| **Vapor Mode** | Experimental no-VDOM renderer (not GA in 2026). Opt-in per component via `<script setup vapor>` when shipped |
 
 ---
 
@@ -75,20 +78,18 @@ project-name/
 
 ## Setup Steps
 
-1. Initialize Project:
+1. Initialize project:
    ```bash
    npx nuxi@latest init my-app
-   # Select "Nuxt 4 structure" if prompted
    ```
 
-2. Install Core Deps:
+2. Install core deps:
    ```bash
    npm install @pinia/nuxt @prisma/client zod
    npm install -D prisma
    ```
 
-3. Setup Tailwind v4:
-   Install the Vite plugin (new standard):
+3. Setup Tailwind v4 (first-party Vite plugin, NOT @nuxtjs/tailwindcss):
    ```bash
    npm install tailwindcss @tailwindcss/vite
    ```
@@ -97,15 +98,12 @@ project-name/
    ```ts
    import tailwindcss from '@tailwindcss/vite'
    export default defineNuxtConfig({
-     vite: {
-       plugins: [tailwindcss()]
-     },
+     vite: { plugins: [tailwindcss()] },
      css: ['~/assets/css/main.css']
    })
    ```
 
-4. Configure CSS:
-   In `app/assets/css/main.css`:
+4. Configure CSS in `app/assets/css/main.css`:
    ```css
    @import "tailwindcss";
    @theme {
@@ -113,22 +111,17 @@ project-name/
    }
    ```
 
-5. Run Development:
+5. Run development:
    ```bash
    npm run dev
-   # Runs with Turbo/Vite
    ```
 
 ---
 
 ## Best Practices
 
-- **Vapor Mode**: Kích hoạt cho các component nặng về render:
-  ```ts
-  <script setup lang="ts" vapor>
-  // Component này sẽ compile sang chế độ Vapor (No VDOM)
-  </script>
-  ```
-- **Data Fetching**: Sử dụng `useFetch` với `server: false` cho các tác vụ client-only, hoặc dùng Server Functions để type-safety tốt hơn.
-- **State**: Dùng `defineStore` (Pinia) cho global state, `useState` của Nuxt cho state đơn giản chia sẻ giữa Server/Client.
-- **Type Safety**: Tự động tạo type cho API routes (`$fetch` typed automatically).
+- **Data Fetching**: Use `useFetch`/`useAsyncData` for SSR-friendly data; reserve `server: false` for client-only work.
+- **State**: Use Pinia (`defineStore`) for global state, Nuxt's `useState` for simple shared SSR state.
+- **Validation**: Define Zod schemas in `shared/` and reuse on client forms and Nitro API routes.
+- **Type Safety**: API route types are inferred automatically with `$fetch`.
+- **Server-only**: Instantiate the Prisma client in `server/utils/` so it never leaks to the client bundle.

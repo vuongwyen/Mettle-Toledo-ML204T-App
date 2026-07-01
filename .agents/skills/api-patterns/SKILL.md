@@ -1,12 +1,13 @@
 ---
 name: api-patterns
 description: API design principles and decision-making. REST vs GraphQL vs tRPC selection, response formats, versioning, pagination.
+when_to_use: "When designing REST/GraphQL/tRPC APIs, defining response formats, versioning, pagination, or API authentication. NOT for UI/frontend work."
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # API Patterns
 
-> API design principles and decision-making for 2025.
+> API design principles and decision-making.
 > **Learn to THINK, not copy fixed patterns.**
 
 ## 🎯 Selective Reading Rule
@@ -36,9 +37,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep
 
 | Need | Skill |
 |------|-------|
-| API implementation | `@[skills/backend-development]` |
+| API implementation | `@[skills/nodejs-best-practices]` |
 | Data structure | `@[skills/database-design]` |
-| Security details | `@[skills/security-hardening]` |
+| Security details | `@[skills/vulnerability-scanner]` |
 
 ---
 

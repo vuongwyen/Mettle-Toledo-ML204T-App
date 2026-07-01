@@ -4,7 +4,7 @@
 
 ---
 
-## Next.js Full-Stack Structure (2026+ Next.js 16 Optimized)
+## Next.js Full-Stack Structure (Next.js 16 Optimized)
 
 ```
 project-name/
@@ -12,39 +12,28 @@ project-name/
 │   ├── app/                        # Routes only (thin layer)
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
-│   │   ├── globals.css
+│   │   ├── globals.css             # Tailwind v4 config (@theme) lives here
 │   │   ├── (auth)/                 # Route group - auth pages
 │   │   │   ├── login/page.tsx
 │   │   │   └── register/page.tsx
 │   │   ├── (dashboard)/            # Route group - dashboard layout
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
-│   │   └── api/
+│   │   └── api/                    # Route Handlers (webhooks/external only)
 │   │       └── [resource]/route.ts
 │   │
-│   ├── features/                   # Feature-based modules
-│   │   ├── auth/
-│   │   │   ├── components/
-│   │   │   ├── hooks/
-│   │   │   ├── actions.ts          # Server Actions
-│   │   │   ├── queries.ts          # Data fetching
-│   │   │   └── types.ts
-│   │   ├── products/
-│   │   │   ├── components/
-│   │   │   ├── actions.ts
-│   │   │   └── queries.ts
-│   │   └── cart/
-│   │       └── ...
+│   ├── components/                 # UI components
+│   │   ├── ui/                     # Reusable primitives (Button, Input)
+│   │   └── forms/                  # Client forms (useActionState)
 │   │
-│   ├── shared/                     # Shared utilities
-│   │   ├── components/ui/          # Reusable UI components
-│   │   ├── lib/                    # Utils, helpers
-│   │   └── hooks/                  # Global hooks
+│   ├── lib/                        # Shared utilities & server-only logic
+│   │   ├── db.ts                   # Prisma singleton client
+│   │   ├── dal.ts                  # Data Access Layer (server-only, DTOs)
+│   │   └── utils.ts                # Helper functions
 │   │
-│   └── server/                     # Server-only code
-│       ├── db/                     # Database client (Prisma)
-│       ├── auth/                   # Auth config
-│       └── services/               # External API integrations
+│   ├── actions/                    # Server Actions (mutations)
+│   │
+│   └── types/                      # Global TypeScript types
 │
 ├── prisma/
 │   ├── schema.prisma
@@ -52,10 +41,11 @@ project-name/
 │   └── seed.ts
 │
 ├── public/
+├── proxy.ts                        # Network boundary (auth, redirects)
 ├── .env.example
 ├── .env.local
 ├── package.json
-├── tailwind.config.ts
+├── next.config.ts
 ├── tsconfig.json
 └── README.md
 ```
@@ -66,25 +56,26 @@ project-name/
 
 | Principle | Implementation |
 |-----------|----------------|
-| **Feature isolation** | Each feature in `features/` with its own components, hooks, actions |
-| **Server/Client separation** | Server-only code in `server/`, prevents accidental client imports |
-| **Thin routes** | `app/` only for routing, logic lives in `features/` |
+| **Thin routes** | `app/` only for routing + layouts, logic lives in `actions/` and `lib/` |
+| **Server/Client separation** | Server-only logic in `lib/dal.ts`, prevents accidental client imports |
+| **Data Access Layer** | `lib/dal.ts` centralizes DB access and returns DTOs for safe reuse |
+| **Mutations via Server Actions** | `actions/` holds Server Actions, called from forms with `useActionState` |
 | **Route groups** | `(groupName)/` for layout sharing without URL impact |
-| **Shared code** | `shared/` for truly reusable UI and utilities |
+| **Reusable UI** | `components/ui/` for primitives, `components/forms/` for client forms |
 
 ---
 
 | File | Purpose |
 |------|---------|
-| `proxy.ts` | Next.js 16 Network boundary logic (auth, redirects) |
+| `proxy.ts` | Next.js 16 network boundary logic (auth, redirects). Renamed from `middleware.ts`, runs on Node.js runtime |
 | `package.json` | Dependencies |
-| `tsconfig.json` | TypeScript + path aliases (`@/features/*`) |
-| `tailwind.config.ts` | Tailwind config |
+| `next.config.ts` | Next.js config (TypeScript) |
+| `tsconfig.json` | TypeScript + path aliases (`@/*`) |
 | `.env.example` | Environment template |
 | `README.md` | Project documentation |
 | `.gitignore` | Git ignore rules |
 | `prisma/schema.prisma` | Database schema |
-| `src/server/cache-handler.ts` | Next.js 16 Cache Components Manager |
+| `src/app/globals.css` | Tailwind v4 config via `@theme` (no `tailwind.config.js`) |
 
 ---
 
@@ -95,9 +86,9 @@ project-name/
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"],
-      "@/features/*": ["./src/features/*"],
-      "@/shared/*": ["./src/shared/*"],
-      "@/server/*": ["./src/server/*"]
+      "@/components/*": ["./src/components/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@/actions/*": ["./src/actions/*"]
     }
   }
 }
@@ -110,9 +101,10 @@ project-name/
 | Need | Location |
 |------|----------|
 | New page/route | `app/(group)/page.tsx` |
-| Feature component | `features/[name]/components/` |
-| Server action | `features/[name]/actions.ts` |
-| Data fetching | `features/[name]/queries.ts` |
-| Reusable button/input | `shared/components/ui/` |
-| Database query | `server/db/` |
-| External API call | `server/services/` |
+| Reusable button/input | `components/ui/` |
+| Client form | `components/forms/` |
+| Server action (mutation) | `actions/` |
+| Data fetching / DB query | `lib/dal.ts` |
+| Prisma client | `lib/db.ts` |
+| Helper function | `lib/utils.ts` |
+| Auth / redirect logic | `proxy.ts` |

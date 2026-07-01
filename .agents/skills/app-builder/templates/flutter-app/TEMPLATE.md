@@ -5,13 +5,15 @@ description: Flutter mobile app template principles. Riverpod, Go Router, clean 
 
 # Flutter App Template
 
+> Versions reflect the latest stable line verified 2026-05. Pin to the current stable when scaffolding.
+
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
 | Framework | Flutter 3.x |
 | Language | Dart 3.x |
-| State | Riverpod 2.0 |
+| State | Riverpod 3 (codegen) |
 | Navigation | Go Router |
 | HTTP | Dio |
 | Storage | Hive |
@@ -83,8 +85,9 @@ project_name/
 
 ## Best Practices
 
-- Feature-first folder structure
-- Riverpod for state, React Query pattern for server state
+- Feature-first folder structure (data / domain / presentation per feature)
+- Riverpod 3 with `riverpod_annotation` codegen (generated ref is just `Ref`; plain `Notifier`, no `AutoDisposeNotifier`)
+- Legacy `StateProvider`/`StateNotifierProvider` moved to `package:riverpod/legacy.dart`
 - Freezed for immutable data classes
 - Go Router for declarative navigation
 - Material 3 theming

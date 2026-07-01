@@ -5,17 +5,17 @@ description: React Native mobile app template principles. Expo, TypeScript, navi
 
 # React Native App Template (2026 Edition)
 
-Modern mobile app template, optimized for New Architecture and React 19.
+> Modern mobile app, optimized for New Architecture and React 19. Versions reflect the latest stable line verified 2026-05; NativeWind v5 is pre-release — pin deliberately when scaffolding.
 
 ## Tech Stack
 
 | Component | Technology | Version / Notes |
 |-----------|------------|-----------------|
-| Core | React Native + Expo | SDK 52+ (New Architecture Enabled) |
+| Core | React Native + Expo | SDK 56+ (New Architecture Enabled) |
 | Language | TypeScript | v5+ (Strict Mode) |
 | UI Logic | React | v19 (React Compiler, auto-memoization) |
-| Navigation | Expo Router | v4+ (File-based, Universal Links) |
-| Styling | NativeWind | v4.0 (Tailwind v4, CSS-first config) |
+| Navigation | Expo Router | File-based, Universal Links |
+| Styling | NativeWind | v5 (pre-release, Tailwind v4 CSS-first) |
 | State | Zustand + React Query | v5+ (Async State Management) |
 | Storage | Expo SecureStore | Encrypted local storage |
 
@@ -23,32 +23,33 @@ Modern mobile app template, optimized for New Architecture and React 19.
 
 ## Directory Structure
 
-Standardized structure for Expo Router and NativeWind v4.
+Expo Router keeps `app/` for routes only; everything else lives under `src/` with the `@/*` alias.
 
 ```
 project-name/
-├── app/                 # Expo Router (File-based routing)
-│   ├── _layout.tsx      # Root Layout (Stack/Tabs config)
-│   ├── index.tsx        # Main Screen
-│   ├── (tabs)/          # Route Group for Tab Bar
-│   │   ├── _layout.tsx
-│   │   ├── home.tsx
-│   │   └── profile.tsx
-│   ├── +not-found.tsx   # 404 Page
-│   └── [id].tsx         # Dynamic Route (Typed)
-├── components/
-│   ├── ui/              # Primitive Components (Button, Text)
-│   └── features/        # Complex Components
-├── hooks/               # Custom Hooks
-├── lib/
-│   ├── api.ts           # Axios/Fetch client
-│   └── storage.ts       # SecureStore wrapper
-├── store/               # Zustand stores
-├── constants/           # Colors, Theme config
+├── src/
+│   ├── app/             # Expo Router (file-based routing ONLY)
+│   │   ├── _layout.tsx  # Root Layout (Stack/Tabs config)
+│   │   ├── index.tsx    # Main Screen
+│   │   ├── (tabs)/      # Route Group for Tab Bar
+│   │   │   ├── _layout.tsx
+│   │   │   ├── home.tsx
+│   │   │   └── profile.tsx
+│   │   ├── +not-found.tsx
+│   │   └── [id].tsx     # Dynamic Route (Typed)
+│   ├── components/
+│   │   ├── ui/          # Primitive Components (Button, Text)
+│   │   └── features/    # Complex Components
+│   ├── hooks/           # Custom Hooks
+│   ├── lib/
+│   │   ├── api.ts       # Axios/Fetch client
+│   │   └── storage.ts   # SecureStore wrapper
+│   ├── store/           # Zustand stores
+│   └── constants/       # Colors, Theme config
 ├── assets/              # Fonts, Images
-├── global.css           # Entry point for NativeWind v4
-├── tailwind.config.ts   # Tailwind Config (if custom theme needed)
-├── babel.config.js      # NativeWind Babel Plugin
+├── global.css           # NativeWind v5 entry: @import "tailwindcss"
+├── babel.config.js      # NativeWind Babel preset
+├── metro.config.js      # withNativeWind wrapper
 └── app.json             # Expo Config
 ```
 
@@ -91,15 +92,16 @@ project-name/
    npx expo install expo-router react-native-safe-area-context react-native-screens expo-link expo-constants expo-status-bar
    ```
 
-3. Install NativeWind v4:
+3. Install NativeWind v5 (pre-release, Tailwind v4 CSS-first):
    ```bash
-   npm install nativewind tailwindcss react-native-reanimated
+   npm install nativewind@next tailwindcss react-native-reanimated
    ```
 
-4. Configure NativeWind (Babel & CSS):
-   - Add plugin to `babel.config.js`: `plugins: ["nativewind/babel"]`.
-   - Create `global.css` with: `@import "tailwindcss";`.
-   - Import `global.css` in `app/_layout.tsx`.
+4. Configure NativeWind (Babel, Metro & CSS):
+   - Add the preset to `babel.config.js`: `presets: [["babel-preset-expo", { jsxImportSource: "nativewind" }], "nativewind/babel"]`.
+   - Wrap Metro: `withNativeWind(config, { input: './global.css' })` in `metro.config.js`.
+   - Create `global.css` with `@import "tailwindcss";` (theme via `@theme`, no `tailwind.config.js`).
+   - Import `global.css` in `src/app/_layout.tsx`.
 
 5. Run Project:
    ```bash

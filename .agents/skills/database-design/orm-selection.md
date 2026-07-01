@@ -1,4 +1,4 @@
-# ORM Selection (2025)
+# ORM Selection
 
 > Choose ORM based on deployment and DX needs.
 

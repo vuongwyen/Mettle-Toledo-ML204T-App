@@ -1,12 +1,13 @@
 ---
 name: python-patterns
 description: Python development principles and decision-making. Framework selection, async patterns, type hints, project structure. Teaches thinking, not copying.
+when_to_use: "When writing Python code, selecting Python frameworks, implementing type hints, or structuring Python projects."
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Python Patterns
 
-> Python development principles and decision-making for 2025.
+> Python development principles and decision-making.
 > **Learn to THINK, not memorize patterns.**
 
 ---
@@ -21,7 +22,7 @@ This skill teaches **decision-making principles**, not fixed code to copy.
 
 ---
 
-## 1. Framework Selection (2025)
+## 1. Framework Selection
 
 ### Decision Tree
 
@@ -100,7 +101,7 @@ Don't:
 |------|---------------|
 | HTTP client | httpx |
 | PostgreSQL | asyncpg |
-| Redis | aioredis / redis-py async |
+| Redis | redis-py (`redis.asyncio`) |
 | File I/O | aiofiles |
 | Database ORM | SQLAlchemy 2.0 async, Tortoise |
 
@@ -218,7 +219,7 @@ By feature:
 
 ---
 
-## 5. Django Principles (2025)
+## 5. Django Principles
 
 ### Django Async (Django 5.0+)
 
