@@ -119,11 +119,29 @@ namespace Test.Services
             if (records == null || records.Count == 0)
                 return new List<Guid>();
 
-            var payload = new SyncPayload<List<Test.Models.ScaleRecord>>
+            var dtos = records.Select(r => new SyncRecordDto
+            {
+                RecordId = r.Id,
+                TestedAt = r.Timestamp,
+                Payload = new
+                {
+                    WeightValue = r.Weight,
+                    Unit = r.Unit,
+                    Nart = r.NatCode,
+                    BatchCode = r.Batch,
+                    SampleName = r.SampleName,
+                    Location = r.Location,
+                    Tester = r.Tester
+                }
+            }).ToList();
+
+            var payload = new SyncPayload<List<SyncRecordDto>>
             {
                 DeviceId = deviceId,
+                AppId = "Scale-App-001",
+                AppType = "Scale",
                 SyncTime = DateTimeOffset.UtcNow,
-                Data     = records
+                Data     = dtos
             };
 
             // [R-03] Idempotency key: xác định duy nhất theo tập records — không phụ thuộc thứ tự gửi

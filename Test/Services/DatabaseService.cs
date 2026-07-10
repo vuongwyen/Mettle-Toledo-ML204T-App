@@ -78,7 +78,7 @@ namespace Test
             List<(long Id, Models.ScaleRecord ApiModel)> batch;
             try
             {
-                batch = GetPendingBatch(SyncBatchSize);
+                batch = GetPendingBatch(_deviceId, SyncBatchSize);
             }
             finally
             {
@@ -151,7 +151,7 @@ namespace Test
         }
 
         /// <summary>Lấy batch record chưa sync. GỌI khi đã giữ _dbLock.</summary>
-        private static List<(long Id, Models.ScaleRecord ApiModel)> GetPendingBatch(int limit)
+        private static List<(long Id, Models.ScaleRecord ApiModel)> GetPendingBatch(string deviceId, int limit)
         {
             var result = new List<(long, Models.ScaleRecord)>();
             using var conn = new SqliteConnection(DatabaseHelper.GetConnectionString());
@@ -170,7 +170,7 @@ namespace Test
                 long localId = reader.GetInt64(0);
                 var apiModel = new Models.ScaleRecord
                 {
-                    Id         = Guid.NewGuid(), // Tạo Guid tạm để server nhận diện
+                    Id         = GenerateDeterministicGuid(deviceId, reader.GetDateTime(1), decimal.Parse(reader.GetString(2), System.Globalization.CultureInfo.InvariantCulture)),
                     Timestamp  = new DateTimeOffset(reader.GetDateTime(1), TimeSpan.FromHours(7)),
                     Weight     = decimal.Parse(reader.GetString(2), System.Globalization.CultureInfo.InvariantCulture),
                     Unit       = reader.GetString(3),
@@ -210,9 +210,9 @@ namespace Test
         // MAPPER: Test.ScaleRecord → Test.Models.ScaleRecord
         // ──────────────────────────────────────────────────────────────────
 
-        private static Models.ScaleRecord MapToApiModel(ScaleRecord r) => new()
+        private Models.ScaleRecord MapToApiModel(ScaleRecord r) => new()
         {
-            Id         = Guid.NewGuid(),
+            Id         = GenerateDeterministicGuid(_deviceId, r.Timestamp, r.Weight),
             Timestamp  = new DateTimeOffset(r.Timestamp, TimeSpan.FromHours(7)),
             Weight     = r.Weight,
             Unit       = r.Unit,
@@ -223,6 +223,14 @@ namespace Test
             Tester     = r.Tester,
             IsSynced   = false
         };
+
+        private static Guid GenerateDeterministicGuid(string deviceId, DateTime timestamp, decimal weight)
+        {
+            using var md5 = System.Security.Cryptography.MD5.Create();
+            string input = $"{deviceId}_{timestamp.Ticks}_{weight.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
+            return new Guid(hash);
+        }
 
         public void Dispose()
         {
