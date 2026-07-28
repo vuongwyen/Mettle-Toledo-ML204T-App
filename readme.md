@@ -1,155 +1,82 @@
-# Tesa Lab Data Server (Scale Integration System)
+# Tesa Lab Data Server (Mettler Toledo ML204T App)
 
-Ứng dụng quản lý và thu thập dữ liệu tự động từ các thiết bị Cân điện tử (chuẩn MT-SICS) thông qua cổng COM (RS232). Phần mềm cung cấp giải pháp lưu trữ cục bộ mã hóa bằng SQLite (EF Core), khả năng đồng bộ dữ liệu lên Server Đám mây (Cloud), và phân tích dữ liệu trực quan.
+## 1. Tổng quan dự án (Overview)
+- **Làm gì:** App WinForms tự động đọc số cân Mettler Toledo (chuẩn MT-SICS) qua cổng COM, lưu SQLite, đồng bộ tự động lên Cloud Server.
+- **Phục vụ ai:** Kỹ thuật viên Tesa Lab. Giải quyết bài toán nhập liệu tay sai sót, mất dữ liệu.
+- **Trạng thái:** Đang chạy Production.
+- **Link:** [Repo Local], [Tài liệu hãng Mettler Toledo ML204T/M00]
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![.NET](https://img.shields.io/badge/.NET-10.0-purple)]()
-[![EF Core](https://img.shields.io/badge/EF_Core-SQLite-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+## 2. Kiến trúc hệ thống (Architecture)
+- **Sơ đồ:** Cân ML204T -> RS232 (Cổng COM) -> WinForms App (Background Thread) -> SQLite (Local) -> Background API Sync -> ScaleDataServer.
+- **Tech stack:** .NET 10.0 (WinForms). EF Core (SQLite). ClosedXML (Excel). CsvHelper. OxyPlot (Biểu đồ).
+- **Luồng dữ liệu:** COM Port nhả string -> MT-SICS Parser bóc tách -> EF Core Insert DB -> NetworkSyncWorker nhặt DB đẩy lên API.
 
----
-
-## 📋 Mục lục
-- [Tính năng chính](#-tính-năng-chính-features)
-- [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống-requirements)
-- [Cài đặt](#-cài-đặt-installation)
-- [Cấu trúc thư mục](#-cấu-trúc-thư-mục-project-structure)
-- [Hướng dẫn sử dụng](#-hướng-dẫn-sử-dụng-usage)
-- [Quản trị & Phân quyền](#-quản-trị--phân-quyền-roles)
-- [Kiến trúc Database](#-kiến-trúc-database)
-- [Troubleshooting](#-troubleshooting)
-- [Đóng góp](#-đóng-góp-contributing)
-- [License](#-license)
-
----
-
-## ✨ Tính năng chính (Features)
-- ✅ **Giao tiếp Cân Tự Động:** Đọc dữ liệu liên tục từ các dòng cân hỗ trợ chuẩn giao thức **MT-SICS** (Mettler Toledo) qua cổng Serial (COM).
-- ✅ **Lưu trữ cục bộ An Toàn:** Sử dụng **SQLite** kết hợp công nghệ ORM **Entity Framework Core**. Có khả năng tương thích với mã hóa SQLCipher AES-256.
-- ✅ **Đồng bộ Cloud:** Service chạy ngầm tự động gom dữ liệu đẩy lên Server trung tâm qua HTTP POST API, đảm bảo không rớt gói tin kể cả khi mất mạng.
-- ✅ **Quản lý dữ liệu trực quan:** Bảng DataGridView cho phép chỉnh sửa nội tuyến (inline-edit), lọc theo cột, tìm kiếm siêu tốc và xóa hàng loạt (Bulk Delete).
-- ✅ **Export / Import:** Xuất nhập dữ liệu chuẩn định dạng `.xlsx` (ClosedXML) và `.csv` (CsvHelper).
-- ✅ **Phân quyền (Roles):** Tách biệt không gian thao tác giữa `Admin` và `User` để bảo mật cấu hình cổng COM và URL máy chủ.
-- ✅ **Biểu đồ (Analytics):** Dashboard thống kê tổng tải trọng và số lượng mẫu đo được theo thời gian thực (Real-time OxyPlot).
-
----
-
-## 💻 Yêu cầu hệ thống (Requirements)
-
-- **Hệ điều hành:** Windows 10 / Windows 11 (yêu cầu hỗ trợ WinForms).
-- **Runtime:** .NET 10.0 SDK (hoặc tương đương cấu hình trong tệp `.csproj`).
-- **Phần cứng:** Có cổng USB / COM Port RS232, Cáp kết nối RS232-to-USB.
-- **Thư viện bên thứ 3 (Nuget):**
-  - `Microsoft.EntityFrameworkCore.Sqlite.Core` (Quản lý Database)
-  - `ClosedXML` (Xử lý Excel)
-  - `CsvHelper` (Xử lý CSV)
-  - `OxyPlot.WindowsForms` (Vẽ biểu đồ)
-
----
-
-## 📦 Cài đặt (Installation)
-
-Tải Source Code về máy và biên dịch bằng CLI hoặc Visual Studio.
-
-```bash
-# 1. Clone repository hoặc giải nén source code
-cd path/to/Test
-
-# 2. Khôi phục (Restore) các thư viện Nuget cần thiết
-dotnet restore
-
-# 3. Biên dịch dự án
-dotnet build --configuration Release
-
-# 4. Chạy ứng dụng (hoặc mở file .exe trong thư mục bin/Release)
-dotnet run
-```
-
----
-
-## 📂 Cấu trúc thư mục (Project Structure)
-
+## 3. Cấu trúc thư mục (Project structure)
 ```text
 Test/
-├── Data/
-│   └── ScaleDbContext.cs       # Cấu hình kết nối và ánh xạ EF Core
-├── Models/
-│   └── ScaleRecord.cs          # Model ánh xạ Database và API Payload (JSON)
-├── Services/
-│   ├── ConnectionManager.cs    # Lõi xử lý SerialPort và giao thức MT-SICS
-│   ├── DatabaseHelper.cs       # Quản lý SemaphoreSlim chống lock đa luồng
-│   ├── DatabaseService.cs      # Background Thread đồng bộ dữ liệu lên Server
-│   ├── CsvExportService.cs     # Logic Export/Import CSV
-│   └── ExcelExportService.cs   # Logic Export/Import Excel
-├── Form1.cs                    # UI logic chính (WinForms)
-├── Form1.Designer.cs           # Giao diện tĩnh sinh tự động
-├── ScaleRecord.cs              # Entity chính của EF Core
-├── Test.csproj                 # Cấu hình Dependencies & Target Framework
-└── README.md                   # Tài liệu bàn giao này
+├── Data/            # EF Core DbContext. Cầu nối Database.
+├── Models/          # Entity class (ScaleRecord).
+├── Services/        # Logic lõi (COM Port, Sync API, Export/Import).
+├── Form1.cs         # Giao diện chính (Dashboard, Data Grid).
+├── AppConfig.cs     # Cấu hình API Key lưu JSON.
+└── Test.csproj      # File gốc dự án.
 ```
+- **Quy ước:** Services xử lý ngầm, bọc SemaphoreSlim chống lock. UI Thread chỉ vẽ và gọi hàm.
 
----
-
-## 🚀 Hướng dẫn sử dụng (Usage)
-
-1. Mở ứng dụng, tại màn hình **Dashboard**, bấm `Đăng nhập Admin` (Mật khẩu mặc định tùy hệ thống bàn giao).
-2. Chuyển sang Tab **Settings** (Chỉ hiện khi là Admin):
-   - Chọn đúng cổng COM đang kết nối với Cân.
-   - Nhập **Server API URL** để đồng bộ dữ liệu.
-3. Quay lại **Dashboard**, bấm nút **▶ Bắt đầu chạy Cân**. 
-   - Ứng dụng sẽ khóa các cài đặt và bắt đầu lắng nghe cổng COM. 
-   - Trọng lượng ổn định sẽ tự động nhảy số lên màn hình và lưu vào Local DB.
-
----
-
-## 🔐 Quản trị & Phân quyền (Roles)
-
-Hệ thống có 2 cấp quyền:
-- **User (Mặc định):** Chỉ có thể xem dữ liệu, xuất file (Export), theo dõi biểu đồ. Không thể sửa thiết lập hay nhập dữ liệu rác (Import).
-- **Admin:** Bấm nút "Đăng nhập Admin" ở góc trên bên trái. Sau khi xác thực, Tab `Settings` sẽ xuất hiện, đồng thời nút `Nhập dữ liệu` (Import) sẽ được kích hoạt (chuyển từ Xám sang Xanh lá).
-
----
-
-## 🗄 Kiến trúc Database (EF Core)
-
-Hệ thống sử dụng **Entity Framework Core** với SQLite.
-- File vật lý: `ScaleData.db` (Nằm cùng thư mục với file `.exe`).
-- Cấu trúc bảo vệ: Mọi truy vấn Insert, Update, Delete đều bị bọc trong cờ lê `DatabaseHelper.DbAccessLock.Wait()`. Điều này giải quyết hoàn toàn bài toán **"Database is locked"** khét tiếng của SQLite khi Background Thread (Đồng bộ) và UI Thread (Người dùng thao tác bảng) chạm nhau.
-- Tính dễ mở rộng (Scalability): Lõi DataRepository được viết thuần túy bằng LINQ. Trong tương lai IT Engineer chỉ cần vào `ScaleDbContext.cs`, đổi `UseSqlite()` thành `UseSqlServer()` là có thể cắm thẳng lên máy chủ MS SQL Server của công ty mà không cần viết lại câu lệnh SQL.
-
----
-
-## 🛠 Troubleshooting (Xử lý sự cố thường gặp)
-
-**1. Không tìm thấy cổng COM Port trên UI?**
-- **Giải pháp:** Kiểm tra lại Driver của dây cáp USB-RS232 (như cáp CH340, PL2303, FTDI). Hãy vào `Device Manager` của Windows để xem thiết bị có bị chấm than vàng không.
-
-**2. Báo lỗi "The data is NULL at ordinal X" khi mở tab Data Sheet?**
-- **Nguyên nhân:** Có một dòng dữ liệu rác trong `ScaleData.db` chứa cột bị `NULL` mà bản thiết kế code không lường trước.
-- **Giải pháp:** Lỗi này đã được fix triệt để. Tuy nhiên nếu tái diễn, IT Engineer cần check lại file `ScaleRecord.cs`, đảm bảo mọi biến có thể nhận NULL từ DB đều có dấu chấm hỏi `?` (ví dụ: `public string? SampleName { get; set; }`).
-
-**3. Bấm "Nhập dữ liệu" không phản hồi?**
-- **Giải pháp:** Nhìn màu nút. Nếu nút màu Xám, nghĩa là bạn đang ở quyền User. Hãy ấn "Đăng nhập Admin".
-
-**4. Dữ liệu cân không nảy lên màn hình?**
-- **Giải pháp:** Chuẩn giao thức hiện tại là `MT-SICS`. Nếu sử dụng cân hãng khác (Cas, Ohaus...), cần cấu hình lại hàm `MtSicsParser.Parse()` để phù hợp với định dạng chuỗi chuỗi Hex/ASCII trả về từ cân đó.
-
----
-
-## 🤝 Đóng góp (Contributing)
-
-Khi bàn giao, các kỹ sư muốn nâng cấp hệ thống vui lòng tuân thủ quy tắc:
-1. **Tuyệt đối không dùng `cat` hay `echo`** để sửa code thủ công trên môi trường Windows Server (dùng IDE như Visual Studio).
-2. Bất cứ khi nào thêm cột vào Database, hãy đảm bảo bạn đánh dấu `[NotMapped]` cho các biến chỉ dùng trên UI (như `IsSelected`) để tránh EF Core sinh lỗi.
-3. Chạy `dotnet build` trước khi push code lên nhánh chính.
-
----
-
-## ✍️ Tác giả (Authors)
-- **Truong, Quyen/tSH PHp** - Thiết kế và phát triển kiến trúc hệ thống
-
----
-
-## 📄 License
-Tài liệu nội bộ & Bàn giao độc quyền - Do hệ thống thiết kế riêng cho Tesa Lab.
+## 4. Hướng dẫn cài đặt môi trường (Setup)
+- **Yêu cầu:** Máy tính Windows 10/11. Đã cắm cáp USB-RS232 nối với cân.
+- **Cài đặt:** Cài .NET 10.0 SDK.
+- **Steps:**
+```bash
+cd Test
+dotnet restore
 ```
+- **Cấu hình:** App không dùng `.env`. Mọi setting (COM Port, API URL) cấu hình trên UI (Lưu vào SQLite `Settings` table). Khóa bí mật API lưu vào `appsettings.json` bằng AppConfig.
+
+## 5. Cách chạy và build
+```bash
+# Code/Dev: Mở Test.sln bằng Visual Studio
+# Build xuất xưởng:
+dotnet build --configuration Release
+# Chạy thẳng:
+dotnet run
+```
+- File `.exe` sẽ bung ra ở `bin/Release/net10.0-windows/`. Cầm vứt sang máy khác chạy luôn.
+
+## 6. Database & Data model
+- **DB:** SQLite `ScaleData.db`.
+- **Model chính:** `ScaleRecord` (Id, WeightValue, Unit, TestedAt, IsSynced, Nart, BatchCode...).
+- **Migration:** Code-First bằng EF Core. Đổi schema thì `Add-Migration` rồi `Update-Database`. App có cắm sắn `context.Database.Migrate()` lúc khởi động.
+
+## 7. Các module/tính năng quan trọng
+- **ConnectionManager.cs:** Bắt SerialPort sự kiện DataReceived. Parse chuỗi `S S Weight g` (MT-SICS). Cực kỳ nhạy cảm với rác cổng COM.
+- **NetworkSyncWorker.cs:** Vòng lặp ngầm 5s check DB. Lấy bản ghi `IsSynced = 0` đẩy qua `/api/scale/sync`. Kèm `Idempotency-Key` (Guid) và `X-Api-Key`. Lỗi mạng thì ngâm đó, có mạng tự đẩy tiếp.
+- **Form1.cs:** Dashboard Real-time. Dùng Timer giật OxyPlot update đồ thị.
+
+## 8. Authentication/Authorization & bảo mật
+- **Trên App:** Nút "Đăng nhập Admin" góc trái. Nhập pass cứng để mở khóa Tab `Settings` (Tránh công nhân bấm nhầm đổi cổng COM).
+- **Giao tiếp Server:** App dùng `X-Api-Key` đính ở Header để thông chốt Server. Key này nhập trong tab Settings (chỉ Admin thấy).
+
+## 9. Tích hợp bên thứ ba (Third-party integrations)
+- **ScaleDataServer (Nội bộ):** API nhận dữ liệu cân. Giới hạn 50 bản ghi/lần bắn để mượt mạng.
+- **Thiết bị cân Mettler Toledo:** Cắm cáp đọc sống, không cần cài tool hãng.
+
+## 10. Testing
+- Test thủ công với cân thật.
+- **Chú ý:** Sửa code luồng COM Port phải cắm giả lập RS232 (Virtual Serial Port) băm chuỗi test liên tục xem app có chết Thread không. Chưa có Unit Test.
+
+## 11. Deployment & CI/CD
+- **Deploy:** Build Release thủ công ra folder `bin`. Nén ZIP quăng qua Zalo hoặc copy USB cài vào máy trạm phòng Lab.
+- **Rollback:** Cóp lại bản `.exe` cũ. Database tự tương thích nếu không xóa cột.
+
+## 12. Monitoring & Logging
+- **Màn hình:** Thanh trạng thái dưới cùng nháy xanh (Đồng bộ OK) hoặc đỏ (Rớt mạng/Lỗi API).
+- Hiện chưa tích hợp Sentry. Debug bằng try-catch báo thẳng lên MessageBox.
+
+## 13. Known issues / Technical debt
+- **Database is locked:** Đã fix bằng `SemaphoreSlim` ở `DatabaseHelper` ép luồng xếp hàng. Không được đụng vào cơ chế này.
+- **Technical Debt:** File `Form1.cs` ôm hơi nhiều logic (God Object). Mùa sau rảnh thì tách bớt logic UI ra mô hình MVP/MVVM.
+
+## 14. Liên hệ & tài nguyên khác
+- **Email Hỏi đáp:** treepoo2023@gmail.com.
+- **Tài liệu:** Đọc "Mettler Toledo MT-SICS Reference Manual" (Tìm Google model ML204T/M00) để hiểu chuỗi Hex Cân trả về.
