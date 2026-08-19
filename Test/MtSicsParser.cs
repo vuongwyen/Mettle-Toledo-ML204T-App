@@ -56,9 +56,9 @@ namespace Test
                     string weightStr = match.Groups[2].Value;
                     if (decimal.TryParse(weightStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal weight))
                     {
-                        data.Weight = weight;
+                        data.Weight = weight * 100m; // [QA Req] Đổi g/mm2 sang g/cm2
                     }
-                    data.Unit = match.Groups[3].Value;
+                    data.Unit = "g/cm²"; // Ép unit hiển thị chuẩn
                 }
 
                 return data;
