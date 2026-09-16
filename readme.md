@@ -1,4 +1,4 @@
-# Tesa Lab Data Server (Mettler Toledo ML204T App)
+# Tesa Lab (Mettler Toledo ML204T App)
 
 ## 1. Tổng quan dự án (Overview)
 - **Làm gì:** App WinForms tự động đọc số cân Mettler Toledo (chuẩn MT-SICS) qua cổng COM, lưu SQLite, đồng bộ tự động lên Cloud Server.
